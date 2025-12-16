@@ -1,0 +1,296 @@
+Subject: [PATCH] 8_09_ajax_datatables
+---
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision 66db95e4c55fde4dceb7046847a5ef5e09efe6af)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1701288609866)
+@@ -6,16 +6,18 @@
+ <html>
+ <jsp:include page="fragments/headTag.jsp"/>
+ <body>
++<script src="resources/js/topjava.common.js" defer></script>
++<script src="resources/js/topjava.users.js" defer></script>
+ <jsp:include page="fragments/bodyHeader.jsp"/>
+ 
+ <div class="jumbotron pt-4">
+     <div class="container">
+         <h3 class="text-center"><spring:message code="user.title"/></h3>
+-        <button class="btn btn-primary">
++        <button class="btn btn-primary" onclick="add()">
+             <span class="fa fa-plus"></span>
+             <spring:message code="common.add"/>
+         </button>
+-        <table class="table table-striped mt-3">
++        <table class="table table-striped" id="datatable">
+             <thead>
+             <tr>
+                 <th><spring:message code="user.name"/></th>
+@@ -33,15 +35,59 @@
+                     <td><c:out value="${user.name}"/></td>
+                     <td><a href="mailto:${user.email}">${user.email}</a></td>
+                     <td>${user.roles}</td>
+-                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if>/></td>
++                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if> id="${user.id}"/></td>
+                     <td><fmt:formatDate value="${user.registered}" pattern="dd-MMMM-yyyy"/></td>
+                     <td><a><span class="fa fa-pencil"></span></a></td>
+-                    <td><a><span class="fa fa-remove"></span></a></td>
++                    <td><a class="delete" id="${user.id}"><span class="fa fa-remove"></span></a></td>
+                 </tr>
+             </c:forEach>
+         </table>
+     </div>
+ </div>
++
++<div class="modal fade" tabindex="-1" id="editRow">
++    <div class="modal-dialog">
++        <div class="modal-content">
++            <div class="modal-header">
++                <h4 class="modal-title"><spring:message code="user.add"/></h4>
++                <button type="button" class="close" data-dismiss="modal">&times;</button>
++            </div>
++            <div class="modal-body">
++                <form id="detailsForm">
++                    <input type="hidden" id="id" name="id">
++
++                    <div class="form-group">
++                        <label for="name" class="col-form-label"><spring:message code="user.name"/></label>
++                        <input type="text" class="form-control" id="name" name="name"
++                               placeholder="<spring:message code="user.name"/>">
++                    </div>
++
++                    <div class="form-group">
++                        <label for="email" class="col-form-label"><spring:message code="user.email"/></label>
++                        <input type="email" class="form-control" id="email" name="email"
++                               placeholder="<spring:message code="user.email"/>">
++                    </div>
++
++                    <div class="form-group">
++                        <label for="password" class="col-form-label"><spring:message code="user.password"/></label>
++                        <input type="password" class="form-control" id="password" name="password"
++                               placeholder="<spring:message code="user.password"/>">
++                    </div>
++                </form>
++            </div>
++            <div class="modal-footer">
++                <button type="button" class="btn btn-secondary" data-dismiss="modal">
++                    <span class="fa fa-close"></span>
++                    <spring:message code="common.cancel"/>
++                </button>
++                <button type="button" class="btn btn-primary" onclick="save()">
++                    <span class="fa fa-check"></span>
++                    <spring:message code="common.save"/>
++                </button>
++            </div>
++        </div>
++    </div>
++</div>
+ <jsp:include page="fragments/footer.jsp"/>
+ </body>
+ </html>
+\ No newline at end of file
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 66db95e4c55fde4dceb7046847a5ef5e09efe6af)
++++ b/config/messages/app.properties	(date 1701288609836)
+@@ -10,6 +10,7 @@
+ user.roles=Roles
+ user.active=Active
+ user.registered=Registered
++user.password=Password
+ 
+ meal.title=Meals
+ meal.edit=Edit meal
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+new file mode 100644
+--- /dev/null	(date 1701288609844)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1701288609844)
+@@ -0,0 +1,35 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.http.MediaType;
++import org.springframework.web.bind.annotation.*;
++import ru.javawebinar.topjava.model.Role;
++import ru.javawebinar.topjava.model.User;
++
++import java.util.List;
++
++@RestController
++@RequestMapping(value = "/admin/users", produces = MediaType.APPLICATION_JSON_VALUE)
++public class AdminUIController extends AbstractUserController {
++
++    @Override
++    @GetMapping
++    public List<User> getAll() {
++        return super.getAll();
++    }
++
++    @Override
++    @DeleteMapping("/{id}")
++    @ResponseStatus(HttpStatus.NO_CONTENT)
++    public void delete(@PathVariable int id) {
++        super.delete(id);
++    }
++
++    @PostMapping
++    @ResponseStatus(HttpStatus.NO_CONTENT)
++    public void create(@RequestParam String name,
++                       @RequestParam String email,
++                       @RequestParam String password) {
++        super.create(new User(null, name, email, password, Role.USER));
++    }
++}
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 66db95e4c55fde4dceb7046847a5ef5e09efe6af)
++++ b/config/messages/app_ru.properties	(date 1701288609841)
+@@ -10,6 +10,7 @@
+ user.roles=Роли
+ user.active=Активный
+ user.registered=Зарегистрирован
++user.password=Пароль
+ 
+ meal.title=Моя еда
+ meal.edit=Редактировать еду
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision 66db95e4c55fde4dceb7046847a5ef5e09efe6af)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1701288664269)
+@@ -10,5 +10,12 @@
+     <link rel="stylesheet" href="resources/css/style.css?v=2">
+     <link rel="stylesheet" href="webjars/bootstrap/4.6.2/css/bootstrap.min.css">
+     <link rel="stylesheet" href="webjars/noty/3.1.4/demo/font-awesome/css/font-awesome.min.css">
++    <link rel="stylesheet" href="webjars/datatables/1.13.5/css/dataTables.bootstrap4.min.css">
+     <link rel="shortcut icon" href="resources/images/icon-meal.png">
++
++    <%--http://stackoverflow.com/a/24070373/548473--%>
++    <script src="webjars/jquery/3.7.1/jquery.min.js" defer></script>
++    <script src="webjars/bootstrap/4.6.2/js/bootstrap.min.js" defer></script>
++    <script src="webjars/datatables/1.13.5/js/jquery.dataTables.min.js" defer></script>
++    <script src="webjars/datatables/1.13.5/js/dataTables.bootstrap4.min.js" defer></script>
+ </head>
+\ No newline at end of file
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+new file mode 100644
+--- /dev/null	(date 1701288609848)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1701288609848)
+@@ -0,0 +1,39 @@
++function makeEditable() {
++    $(".delete").click(function () {
++        deleteRow($(this).attr("id"));
++    });
++}
++
++function add() {
++    $("#detailsForm").find(":input").val("");
++    $("#editRow").modal();
++}
++
++function deleteRow(id) {
++    $.ajax({
++        url: ajaxUrl + id,
++        type: "DELETE",
++        success: function () {
++            updateTable();
++        }
++    });
++}
++
++function updateTable() {
++    $.get(ajaxUrl, function (data) {
++        datatableApi.clear().rows.add(data).draw();
++    });
++}
++
++function save() {
++    const form = $("#detailsForm");
++    $.ajax({
++        type: "POST",
++        url: ajaxUrl,
++        data: form.serialize(),
++        success: function () {
++            $("#editRow").modal("hide");
++            updateTable();
++        }
++    });
++}
+\ No newline at end of file
+Index: src/main/webapp/resources/js/topjava.users.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.users.js b/src/main/webapp/resources/js/topjava.users.js
+new file mode 100644
+--- /dev/null	(date 1701288609852)
++++ b/src/main/webapp/resources/js/topjava.users.js	(date 1701288609852)
+@@ -0,0 +1,42 @@
++const ajaxUrl = "admin/users/";
++let datatableApi;
++
++// $(document).ready(function () {
++$(function () {
++    datatableApi = $("#datatable").DataTable({
++        "paging": false,
++        "info": true,
++        "columns": [
++            {
++                "data": "name"
++            },
++            {
++                "data": "email"
++            },
++            {
++                "data": "roles"
++            },
++            {
++                "data": "enabled"
++            },
++            {
++                "data": "registered"
++            },
++            {
++                "defaultContent": "Edit",
++                "orderable": false
++            },
++            {
++                "defaultContent": "Delete",
++                "orderable": false
++            }
++        ],
++        "order": [
++            [
++                0,
++                "asc"
++            ]
++        ]
++    });
++    makeEditable();
++});
+\ No newline at end of file

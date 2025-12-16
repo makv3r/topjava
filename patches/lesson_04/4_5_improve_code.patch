@@ -1,0 +1,353 @@
+Subject: [PATCH] 4_5_improve_code
+---
+Index: src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java b/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java	(date 1740499960176)
+@@ -8,6 +8,9 @@
+ 
+     private static int id = AbstractBaseEntity.START_SEQ;
+ 
++    private SecurityUtil() {
++    }
++
+     public static int authUserId() {
+         return id;
+     }
+Index: src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(date 1740499960224)
+@@ -32,7 +32,7 @@
+     @Test
+     public void create() {
+         User created = service.create(getNew());
+-        Integer newId = created.getId();
++        int newId = created.id();
+         User newUser = getNew();
+         newUser.setId(newId);
+         USER_MATCHER.assertMatch(created, newUser);
+Index: src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(date 1740499960214)
+@@ -49,7 +49,7 @@
+     @Test
+     public void create() {
+         Meal created = service.create(getNew(), USER_ID);
+-        int newId = created.getId();
++        int newId = created.id();
+         Meal newMeal = getNew();
+         newMeal.setId(newId);
+         MEAL_MATCHER.assertMatch(created, newMeal);
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+--- a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1740499768692)
+@@ -1,5 +1,7 @@
+ package ru.javawebinar.topjava.model;
+ 
++import org.springframework.util.Assert;
++
+ public abstract class AbstractBaseEntity {
+     public static final int START_SEQ = 100000;
+ 
+@@ -19,6 +21,11 @@
+     public Integer getId() {
+         return id;
+     }
++
++    public int id() {
++        Assert.notNull(id, "Entity must have id");
++        return id;
++    }
+ 
+     public boolean isNew() {
+         return this.id == null;
+Index: src/main/java/ru/javawebinar/topjava/service/MealService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/MealService.java b/src/main/java/ru/javawebinar/topjava/service/MealService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/MealService.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/service/MealService.java	(date 1740499887615)
+@@ -2,6 +2,7 @@
+ 
+ import org.springframework.lang.Nullable;
+ import org.springframework.stereotype.Service;
++import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ 
+@@ -38,10 +39,12 @@
+     }
+ 
+     public void update(Meal meal, int userId) {
+-        checkNotFound(repository.save(meal, userId), meal.getId());
++        Assert.notNull(meal, "meal must not be null");
++        checkNotFound(repository.save(meal, userId), meal.id());
+     }
+ 
+     public Meal create(Meal meal, int userId) {
++        Assert.notNull(meal, "meal must not be null");
+         return repository.save(meal, userId);
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/UserService.java b/src/main/java/ru/javawebinar/topjava/service/UserService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1740499929502)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.service;
+ 
+ import org.springframework.stereotype.Service;
++import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+ 
+@@ -18,6 +19,7 @@
+     }
+ 
+     public User create(User user) {
++        Assert.notNull(user, "user must not be null");
+         return repository.save(user);
+     }
+ 
+@@ -30,6 +32,7 @@
+     }
+ 
+     public User getByEmail(String email) {
++        Assert.notNull(email, "email must not be null");
+         return checkNotFound(repository.getByEmail(email), "email=" + email);
+     }
+ 
+@@ -38,6 +41,7 @@
+     }
+ 
+     public void update(User user) {
+-        checkNotFound(repository.save(user), user.getId());
++        Assert.notNull(user, "user must not be null");
++        checkNotFound(repository.save(user), user.id());
+     }
+ }
+\ No newline at end of file
+Index: README.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/README.md b/README.md
+--- a/README.md	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/README.md	(date 1740499960256)
+@@ -1,3 +1,5 @@
++[![Codacy Badge](https://app.codacy.com/project/badge/Grade/bee16f3145654047a0505c62aeefd8a2)](https://app.codacy.com/gh/JavaWebinar/topjava/dashboard)
++
+ Java Enterprise Online Project
+ ===============================
+ 
+Index: src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+--- a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(date 1740499960197)
+@@ -12,10 +12,7 @@
+ import javax.annotation.PostConstruct;
+ import javax.annotation.PreDestroy;
+ import java.time.LocalDateTime;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.List;
+-import java.util.Map;
++import java.util.*;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+@@ -36,6 +33,7 @@
+ 
+     @Override
+     public Meal save(Meal meal, int userId) {
++        Objects.requireNonNull(meal, "meal must not be null");
+         InMemoryBaseRepository<Meal> meals = usersMealsMap.computeIfAbsent(userId, uId -> new InMemoryBaseRepository<>());
+         return meals.save(meal);
+     }
+Index: src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+--- a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(date 1740499960205)
+@@ -6,6 +6,7 @@
+ 
+ import java.util.Comparator;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.stream.Collectors;
+ 
+ import static ru.javawebinar.topjava.UserTestData.*;
+@@ -31,6 +32,7 @@
+ 
+     @Override
+     public User getByEmail(String email) {
++        Objects.requireNonNull(email, "email must not be null");
+         return getCollection().stream()
+                 .filter(u -> email.equals(u.getEmail()))
+                 .findFirst()
+Index: src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java
+--- a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java	(date 1740499960185)
+@@ -4,6 +4,7 @@
+ 
+ import java.util.Collection;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.atomic.AtomicInteger;
+ 
+@@ -16,6 +17,7 @@
+     final Map<Integer, T> map = new ConcurrentHashMap<>();
+ 
+     public T save(T entity) {
++        Objects.requireNonNull(entity, "Entity must not be null");
+         if (entity.isNew()) {
+             entity.setId(counter.incrementAndGet());
+             map.put(entity.getId(), entity);
+@@ -37,6 +39,7 @@
+     }
+ 
+     void put(T entity) {
+-        map.put(entity.getId(), entity);
++        Objects.requireNonNull(entity, "Entity must not be null");
++        map.put(entity.id(), entity);
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1740499929554)
+@@ -14,6 +14,9 @@
+ public class MealsUtil {
+     public static final int DEFAULT_CALORIES_PER_DAY = 2000;
+ 
++    private MealsUtil() {
++    }
++
+     public static List<MealTo> getTos(Collection<Meal> meals, int caloriesPerDay) {
+         return filterByPredicate(meals, caloriesPerDay, meal -> true);
+     }
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1740499960151)
+@@ -6,6 +6,9 @@
+ 
+ public class ValidationUtil {
+ 
++    private ValidationUtil() {
++    }
++
+     public static <T> T checkNotFound(T object, int id) {
+         checkNotFound(object != null, id);
+         return object;
+@@ -36,7 +39,7 @@
+ //      conservative when you reply, but accept liberally (http://stackoverflow.com/a/32728226/548473)
+         if (entity.isNew()) {
+             entity.setId(id);
+-        } else if (entity.getId() != id) {
++        } else if (entity.id() != id) {
+             throw new IllegalArgumentException(entity + " must be with id=" + id);
+         }
+     }
+Index: src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(date 1740499929544)
+@@ -15,6 +15,9 @@
+     private static final LocalDateTime MIN_DATE = LocalDateTime.of(1, 1, 1, 0, 0);
+     private static final LocalDateTime MAX_DATE = LocalDateTime.of(3000, 1, 1, 0, 0);
+ 
++    private DateTimeUtil() {
++    }
++
+     public static LocalDateTime atStartOfDayOrMin(LocalDate localDate) {
+         return localDate != null ? localDate.atStartOfDay() : MIN_DATE;
+     }
+Index: .codacy.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.codacy.yml b/.codacy.yml
+new file mode 100644
+--- /dev/null	(date 1740499960239)
++++ b/.codacy.yml	(date 1740499960239)
+@@ -0,0 +1,5 @@
++---
++exclude_paths:
++  - 'src/main/webapp/**'
++  - '**.md'
++  - '**.sql'
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/Util.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/Util.java b/src/main/java/ru/javawebinar/topjava/util/Util.java
+--- a/src/main/java/ru/javawebinar/topjava/util/Util.java	(revision a659b6c63d7d4fe64130ba75b3d1ad3f10e60923)
++++ b/src/main/java/ru/javawebinar/topjava/util/Util.java	(date 1740499929565)
+@@ -3,6 +3,10 @@
+ import org.springframework.lang.Nullable;
+ 
+ public class Util {
++
++    private Util() {
++    }
++
+     public static <T extends Comparable<T>> boolean isBetweenHalfOpen(T value, @Nullable T start, @Nullable T end) {
+         return (start == null || value.compareTo(start) >= 0) && (end == null || value.compareTo(end) < 0);
+     }

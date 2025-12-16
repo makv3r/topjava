@@ -1,0 +1,300 @@
+Index: src/main/java/ru/javawebinar/topjava/HasIdAndEmail.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/HasIdAndEmail.java b/src/main/java/ru/javawebinar/topjava/HasIdAndEmail.java
+new file mode 100644
+--- /dev/null	(date 1671655756025)
++++ b/src/main/java/ru/javawebinar/topjava/HasIdAndEmail.java	(date 1671655756025)
+@@ -0,0 +1,5 @@
++package ru.javawebinar.topjava;
++
++public interface HasIdAndEmail extends HasId {
++    String getEmail();
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1671655743784)
+@@ -6,6 +6,7 @@
+ import org.hibernate.annotations.*;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
++import ru.javawebinar.topjava.HasIdAndEmail;
+ 
+ import javax.persistence.Entity;
+ import javax.persistence.NamedQueries;
+@@ -29,7 +30,7 @@
+ })
+ @Entity
+ @Table(name = "users")
+-public class User extends AbstractNamedEntity {
++public class User extends AbstractNamedEntity implements HasIdAndEmail {
+ 
+     public static final String DELETE = "User.delete";
+     public static final String BY_EMAIL = "User.getByEmail";
+@@ -99,6 +100,7 @@
+         setRoles(roles);
+     }
+ 
++    @Override
+     public String getEmail() {
+         return email;
+     }
+Index: src/main/java/ru/javawebinar/topjava/web/user/UniqueMailValidator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/UniqueMailValidator.java b/src/main/java/ru/javawebinar/topjava/web/user/UniqueMailValidator.java
+new file mode 100644
+--- /dev/null	(date 1671655756016)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/UniqueMailValidator.java	(date 1671655756016)
+@@ -0,0 +1,37 @@
++package ru.javawebinar.topjava.web.user;
++
++
++import org.springframework.stereotype.Component;
++import org.springframework.util.StringUtils;
++import org.springframework.validation.Errors;
++import ru.javawebinar.topjava.HasIdAndEmail;
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.repository.UserRepository;
++import ru.javawebinar.topjava.web.ExceptionInfoHandler;
++
++
++@Component
++public class UniqueMailValidator implements org.springframework.validation.Validator {
++
++    private final UserRepository repository;
++
++    public UniqueMailValidator(UserRepository repository) {
++        this.repository = repository;
++    }
++
++    @Override
++    public boolean supports(Class<?> clazz) {
++        return HasIdAndEmail.class.isAssignableFrom(clazz);
++    }
++
++    @Override
++    public void validate(Object target, Errors errors) {
++        HasIdAndEmail user = ((HasIdAndEmail) target);
++        if (StringUtils.hasText(user.getEmail())) {
++            User dbUser = repository.getByEmail(user.getEmail().toLowerCase());
++            if (dbUser != null && !dbUser.getId().equals(user.getId())) {
++                errors.rejectValue("email", ExceptionInfoHandler.EXCEPTION_DUPLICATE_EMAIL);
++            }
++        }
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1671655756034)
+@@ -183,7 +183,7 @@
+                 .with(userHttpBasic(admin))
+                 .content(jsonWithPassword(updated, "password")))
+                 .andDo(print())
+-                .andExpect(status().isConflict())
++                .andExpect(status().isUnprocessableEntity())
+                 .andExpect(errorType(VALIDATION_ERROR))
+                 .andExpect(detailMessage(EXCEPTION_DUPLICATE_EMAIL));
+     }
+@@ -197,7 +197,7 @@
+                 .with(userHttpBasic(admin))
+                 .content(jsonWithPassword(expected, "newPass")))
+                 .andDo(print())
+-                .andExpect(status().isConflict())
++                .andExpect(status().isUnprocessableEntity())
+                 .andExpect(errorType(VALIDATION_ERROR))
+                 .andExpect(detailMessage(EXCEPTION_DUPLICATE_EMAIL));
+     }
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1671655756039)
+@@ -123,7 +123,7 @@
+                 .with(userHttpBasic(user))
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+-                .andExpect(status().isConflict())
++                .andExpect(status().isUnprocessableEntity())
+                 .andExpect(errorType(VALIDATION_ERROR))
+                 .andExpect(detailMessage(EXCEPTION_DUPLICATE_EMAIL));
+     }
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1671655755957)
+@@ -3,6 +3,8 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.web.bind.WebDataBinder;
++import org.springframework.web.bind.annotation.InitBinder;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+ import ru.javawebinar.topjava.to.UserTo;
+@@ -19,6 +21,14 @@
+     @Autowired
+     private UserService service;
+ 
++    @Autowired
++    private UniqueMailValidator emailValidator;
++
++    @InitBinder
++    protected void initBinder(WebDataBinder binder) {
++        binder.addValidators(emailValidator);
++    }
++
+     public List<User> getAll() {
+         log.info("getAll");
+         return service.getAll();
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/UserTo.java b/src/main/java/ru/javawebinar/topjava/to/UserTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1671655803667)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.to;
+ 
+ import org.hibernate.validator.constraints.Range;
++import ru.javawebinar.topjava.HasIdAndEmail;
+ import ru.javawebinar.topjava.util.UsersUtil;
+ 
+ import javax.validation.constraints.Email;
+@@ -10,7 +11,7 @@
+ import java.io.Serial;
+ import java.io.Serializable;
+ 
+-public class UserTo extends BaseTo implements Serializable {
++public class UserTo extends BaseTo implements HasIdAndEmail, Serializable {
+     @Serial
+     private static final long serialVersionUID = 1L;
+ 
+@@ -58,6 +59,7 @@
+         this.name = name;
+     }
+ 
++    @Override
+     public String getEmail() {
+         return email;
+     }
+Index: src/main/webapp/WEB-INF/jsp/profile.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/profile.jsp b/src/main/webapp/WEB-INF/jsp/profile.jsp
+--- a/src/main/webapp/WEB-INF/jsp/profile.jsp	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/main/webapp/WEB-INF/jsp/profile.jsp	(date 1671655756030)
+@@ -18,6 +18,7 @@
+                 <form:form class="form-group" modelAttribute="userTo" method="post" action="${register ? 'profile/register' : 'profile'}"
+                            charset="utf-8" accept-charset="UTF-8">
+ 
++                    <input name="id" value="${userTo.id}" type="hidden">
+                     <topjava:inputField labelCode="user.name" name="name"/>
+                     <topjava:inputField labelCode="user.email" name="email"/>
+                     <topjava:inputField labelCode="user.password" name="password" inputType="password"/>
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1671655756021)
+@@ -69,7 +69,7 @@
+     @ExceptionHandler(BindException.class)
+     public ErrorInfo bindValidationError(HttpServletRequest req, BindException e) {
+         String[] details = e.getBindingResult().getFieldErrors().stream()
+-                .map(fe -> String.format("[%s] %s", fe.getField(), fe.getDefaultMessage()))
++                .map(messageSourceAccessor::getMessage)
+                 .toArray(String[]::new);
+ 
+         return logAndGetErrorInfo(req, e, false, VALIDATION_ERROR, details);
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision fe2d6b7dee81e537d7330b6c5d1b5343d4aec31c)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1671655755963)
+@@ -1,6 +1,5 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+-import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.ModelMap;
+ import org.springframework.validation.BindingResult;
+@@ -13,8 +12,6 @@
+ 
+ import javax.validation.Valid;
+ 
+-import static ru.javawebinar.topjava.web.ExceptionInfoHandler.EXCEPTION_DUPLICATE_EMAIL;
+-
+ @Controller
+ @RequestMapping("/profile")
+ public class ProfileUIController extends AbstractUserController {
+@@ -29,15 +26,10 @@
+         if (result.hasErrors()) {
+             return "profile";
+         }
+-        try {
+-            super.update(userTo, SecurityUtil.authUserId());
+-            SecurityUtil.get().setTo(userTo);
+-            status.setComplete();
+-            return "redirect:/meals";
+-        } catch (DataIntegrityViolationException ex) {
+-            result.rejectValue("email", EXCEPTION_DUPLICATE_EMAIL);
+-            return "profile";
+-        }
++        super.update(userTo, SecurityUtil.authUserId());
++        SecurityUtil.get().setTo(userTo);
++        status.setComplete();
++        return "redirect:/meals";
+     }
+ 
+     @GetMapping("/register")
+@@ -53,14 +45,8 @@
+             model.addAttribute("register", true);
+             return "profile";
+         }
+-        try {
+-            super.create(userTo);
+-            status.setComplete();
+-            return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
+-        } catch (DataIntegrityViolationException ex) {
+-            result.rejectValue("email", EXCEPTION_DUPLICATE_EMAIL);
+-            model.addAttribute("register", true);
+-            return "profile";
+-        }
++        super.create(userTo);
++        status.setComplete();
++        return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
+     }
+ }
+\ No newline at end of file

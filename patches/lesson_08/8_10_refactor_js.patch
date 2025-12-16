@@ -1,0 +1,190 @@
+Index: src/main/webapp/resources/js/topjava.users.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.users.js b/src/main/webapp/resources/js/topjava.users.js
+--- a/src/main/webapp/resources/js/topjava.users.js	(revision a09af251a4f2aaab1e1ae75db7f671e4b92649a2)
++++ b/src/main/webapp/resources/js/topjava.users.js	(date 1627351000838)
+@@ -1,42 +1,47 @@
+-const ajaxUrl = "admin/users/";
+-let datatableApi;
++const userAjaxUrl = "admin/users/";
++
++// https://stackoverflow.com/a/5064235/548473
++const ctx = {
++    ajaxUrl: userAjaxUrl
++};
+ 
+ // $(document).ready(function () {
+ $(function () {
+-    datatableApi = $("#datatable").DataTable({
+-        "paging": false,
+-        "info": true,
+-        "columns": [
+-            {
+-                "data": "name"
+-            },
+-            {
+-                "data": "email"
+-            },
+-            {
+-                "data": "roles"
+-            },
+-            {
+-                "data": "enabled"
+-            },
+-            {
+-                "data": "registered"
+-            },
+-            {
+-                "defaultContent": "Edit",
+-                "orderable": false
+-            },
+-            {
+-                "defaultContent": "Delete",
+-                "orderable": false
+-            }
+-        ],
+-        "order": [
+-            [
+-                0,
+-                "asc"
+-            ]
+-        ]
+-    });
+-    makeEditable();
++    makeEditable(
++        $("#datatable").DataTable({
++            "paging": false,
++            "info": true,
++            "columns": [
++                {
++                    "data": "name"
++                },
++                {
++                    "data": "email"
++                },
++                {
++                    "data": "roles"
++                },
++                {
++                    "data": "enabled"
++                },
++                {
++                    "data": "registered"
++                },
++                {
++                    "defaultContent": "Edit",
++                    "orderable": false
++                },
++                {
++                    "defaultContent": "Delete",
++                    "orderable": false
++                }
++            ],
++            "order": [
++                [
++                    0,
++                    "asc"
++                ]
++            ]
++        })
++    );
+ });
+\ No newline at end of file
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision a09af251a4f2aaab1e1ae75db7f671e4b92649a2)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1627351207627)
+@@ -1,39 +1,42 @@
+-function makeEditable() {
++let form;
++
++function makeEditable(datatableApi) {
++    ctx.datatableApi = datatableApi;
++    form = $('#detailsForm');
+     $(".delete").click(function () {
+-        deleteRow($(this).attr("id"));
++        if (confirm('Are you sure?')) {
++            deleteRow($(this).closest('tr').attr("id"));
++        }
+     });
+ }
+ 
+ function add() {
+-    $("#detailsForm").find(":input").val("");
++    form.find(":input").val("");
+     $("#editRow").modal();
+ }
+ 
+ function deleteRow(id) {
+     $.ajax({
+-        url: ajaxUrl + id,
+-        type: "DELETE",
+-        success: function () {
+-            updateTable();
+-        }
++        url: ctx.ajaxUrl + id,
++        type: "DELETE"
++    }).done(function () {
++        updateTable();
+     });
+ }
+ 
+ function updateTable() {
+-    $.get(ajaxUrl, function (data) {
+-        datatableApi.clear().rows.add(data).draw();
++    $.get(ctx.ajaxUrl, function (data) {
++        ctx.datatableApi.clear().rows.add(data).draw();
+     });
+ }
+ 
+ function save() {
+-    const form = $("#detailsForm");
+     $.ajax({
+         type: "POST",
+-        url: ajaxUrl,
+-        data: form.serialize(),
+-        success: function () {
+-            $("#editRow").modal("hide");
+-            updateTable();
+-        }
++        url: ctx.ajaxUrl,
++        data: form.serialize()
++    }).done(function () {
++        $("#editRow").modal("hide");
++        updateTable();
+     });
+ }
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision a09af251a4f2aaab1e1ae75db7f671e4b92649a2)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1627351000848)
+@@ -31,14 +31,14 @@
+             </thead>
+             <c:forEach items="${users}" var="user">
+                 <jsp:useBean id="user" type="ru.javawebinar.topjava.model.User"/>
+-                <tr>
++                <tr id="${user.id}">
+                     <td><c:out value="${user.name}"/></td>
+                     <td><a href="mailto:${user.email}">${user.email}</a></td>
+                     <td>${user.roles}</td>
+-                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if> id="${user.id}"/></td>
++                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if>/></td>
+                     <td><fmt:formatDate value="${user.registered}" pattern="dd-MMMM-yyyy"/></td>
+                     <td><a><span class="fa fa-pencil"></span></a></td>
+-                    <td><a class="delete" id="${user.id}"><span class="fa fa-remove"></span></a></td>
++                    <td><a class="delete"><span class="fa fa-remove"></span></a></td>
+                 </tr>
+             </c:forEach>
+         </table>

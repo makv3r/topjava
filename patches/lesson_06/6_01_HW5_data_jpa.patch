@@ -1,0 +1,105 @@
+Index: src/main/java/ru/javawebinar/topjava/repository/datajpa/DataJpaMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/datajpa/DataJpaMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/datajpa/DataJpaMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/datajpa/DataJpaMealRepository.java	(revision 52ea5a62dc16f000a690c6334c3583ab4404e6d3)
++++ b/src/main/java/ru/javawebinar/topjava/repository/datajpa/DataJpaMealRepository.java	(date 1668025553020)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.repository.datajpa;
+ 
+ import org.springframework.stereotype.Repository;
++import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ 
+@@ -10,34 +11,43 @@
+ @Repository
+ public class DataJpaMealRepository implements MealRepository {
+ 
+-    private final CrudMealRepository crudRepository;
++    private final CrudMealRepository crudMealRepository;
++    private final CrudUserRepository crudUserRepository;
+ 
+-    public DataJpaMealRepository(CrudMealRepository crudRepository) {
+-        this.crudRepository = crudRepository;
++    public DataJpaMealRepository(CrudMealRepository crudMealRepository, CrudUserRepository crudUserRepository) {
++        this.crudMealRepository = crudMealRepository;
++        this.crudUserRepository = crudUserRepository;
+     }
+ 
+     @Override
++    @Transactional
+     public Meal save(Meal meal, int userId) {
+-        return null;
++        if (!meal.isNew() && get(meal.id(), userId) == null) {
++            return null;
++        }
++        meal.setUser(crudUserRepository.getReferenceById(userId));
++        return crudMealRepository.save(meal);
+     }
+ 
+     @Override
+     public boolean delete(int id, int userId) {
+-        return false;
++        return crudMealRepository.delete(id, userId) != 0;
+     }
+ 
+     @Override
+     public Meal get(int id, int userId) {
+-        return null;
++        return crudMealRepository.findById(id)
++                .filter(meal -> meal.getUser().getId() == userId)
++                .orElse(null);
+     }
+ 
+     @Override
+     public List<Meal> getAll(int userId) {
+-        return null;
++        return crudMealRepository.getAll(userId);
+     }
+ 
+     @Override
+     public List<Meal> getBetweenHalfOpen(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId) {
+-        return null;
++        return crudMealRepository.getBetweenHalfOpen(startDateTime, endDateTime, userId);
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudMealRepository.java	(revision 52ea5a62dc16f000a690c6334c3583ab4404e6d3)
++++ b/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudMealRepository.java	(date 1668025546343)
+@@ -1,7 +1,26 @@
+ package ru.javawebinar.topjava.repository.datajpa;
+ 
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Modifying;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
++import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.Meal;
+ 
++import java.time.LocalDateTime;
++import java.util.List;
++
++@Transactional(readOnly = true)
+ public interface CrudMealRepository extends JpaRepository<Meal, Integer> {
+-}
++
++    @Modifying
++    @Transactional
++    @Query("DELETE FROM Meal m WHERE m.id=:id AND m.user.id=:userId")
++    int delete(@Param("id") int id, @Param("userId") int userId);
++
++    @Query("SELECT m FROM Meal m WHERE m.user.id=:userId ORDER BY m.dateTime DESC")
++    List<Meal> getAll(@Param("userId") int userId);
++
++    @Query("SELECT m from Meal m WHERE m.user.id=:userId AND m.dateTime >= :startDate AND m.dateTime < :endDate ORDER BY m.dateTime DESC")
++    List<Meal> getBetweenHalfOpen(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate, @Param("userId") int userId);
++}
+\ No newline at end of file

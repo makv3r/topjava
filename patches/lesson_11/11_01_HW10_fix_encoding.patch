@@ -1,0 +1,39 @@
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/web.xml	(revision c35b29a8d0360de32def2c67770fa3026a87e593)
++++ src/main/webapp/WEB-INF/web.xml	(date 1566133065792)
+@@ -37,16 +37,6 @@
+         <url-pattern>/</url-pattern>
+     </servlet-mapping>
+ 
+-    <!-- Spring Security -->
+-    <filter>
+-        <filter-name>springSecurityFilterChain</filter-name>
+-        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+-    </filter>
+-    <filter-mapping>
+-        <filter-name>springSecurityFilterChain</filter-name>
+-        <url-pattern>/*</url-pattern>
+-    </filter-mapping>
+-
+     <filter>
+         <filter-name>encodingFilter</filter-name>
+         <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+@@ -63,4 +53,14 @@
+         <filter-name>encodingFilter</filter-name>
+         <url-pattern>/*</url-pattern>
+     </filter-mapping>
++
++    <!-- Spring Security -->
++    <filter>
++        <filter-name>springSecurityFilterChain</filter-name>
++        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
++    </filter>
++    <filter-mapping>
++        <filter-name>springSecurityFilterChain</filter-name>
++        <url-pattern>/*</url-pattern>
++    </filter-mapping>
+ </web-app>

@@ -1,0 +1,71 @@
+Subject: [PATCH] 1_2_war
+---
+Index: src/main/webapp/index.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/index.html b/src/main/webapp/index.html
+new file mode 100644
+--- /dev/null	(date 1696454539359)
++++ b/src/main/webapp/index.html	(date 1696454539359)
+@@ -0,0 +1,9 @@
++<html lang="ru">
++<head>
++    <meta charset="UTF-8">
++    <title>Java Enterprise (Topjava)</title>
++</head>
++<body>
++<h3>Проект <a href="https://github.com/JavaWebinar/topjava" target="_blank">Java Enterprise (Topjava)</a></h3>
++</body>
++</html>
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 99f46679d28e8b56083228765ebf8c3248b0764b)
++++ b/pom.xml	(date 1696454572112)
+@@ -4,7 +4,7 @@
+ 
+     <groupId>ru.javawebinar</groupId>
+     <artifactId>topjava</artifactId>
+-    <packaging>jar</packaging>
++    <packaging>war</packaging>
+ 
+     <version>1.0-SNAPSHOT</version>
+ 
+@@ -19,8 +19,13 @@
+ 
+     <build>
+         <finalName>topjava</finalName>
+-        <defaultGoal>install</defaultGoal>
++        <defaultGoal>package</defaultGoal>
+         <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-war-plugin</artifactId>
++                <version>3.4.0</version>
++            </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/web.xml b/src/main/webapp/WEB-INF/web.xml
+new file mode 100644
+--- /dev/null	(date 1696454539355)
++++ b/src/main/webapp/WEB-INF/web.xml	(date 1696454539355)
+@@ -0,0 +1,8 @@
++<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
++		 http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
++         version="4.0">
++
++    <display-name>TopJava</display-name>
++</web-app>

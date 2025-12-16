@@ -1,0 +1,786 @@
+Subject: [PATCH] 7_10_JUnit5
+---
+Index: src/test/java/ru/javawebinar/topjava/TimingRules.java
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/TimingRules.java b/src/test/java/ru/javawebinar/topjava/TimingRules.java
+deleted file mode 100644
+--- a/src/test/java/ru/javawebinar/topjava/TimingRules.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ /dev/null	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
+@@ -1,42 +0,0 @@
+-package ru.javawebinar.topjava;
+-
+-import org.junit.rules.ExternalResource;
+-import org.junit.rules.Stopwatch;
+-import org.junit.runner.Description;
+-import org.slf4j.Logger;
+-import org.slf4j.LoggerFactory;
+-
+-import java.util.concurrent.TimeUnit;
+-
+-public class TimingRules {
+-    private static final Logger log = LoggerFactory.getLogger("result");
+-
+-    private static final StringBuilder results = new StringBuilder();
+-
+-    // http://stackoverflow.com/questions/14892125/what-is-the-best-practice-to-determine-the-execution-time-of-the-bussiness-relev
+-    public static final Stopwatch STOPWATCH = new Stopwatch() {
+-        @Override
+-        protected void finished(long nanos, Description description) {
+-            String result = String.format("%-95s %7d", description.getDisplayName(), TimeUnit.NANOSECONDS.toMillis(nanos));
+-            results.append(result).append('\n');
+-            log.info(result + " ms\n");
+-        }
+-    };
+-
+-    //    https://dzone.com/articles/applying-new-jdk-11-string-methods
+-    private static final String DELIM = "-".repeat(103);
+-
+-    public static final ExternalResource SUMMARY = new ExternalResource() {
+-        @Override
+-        protected void before() throws Throwable {
+-            results.setLength(0);
+-        }
+-
+-        @Override
+-        protected void after() {
+-            log.info("\n" + DELIM +
+-                    "\nTest                                                                                       Duration, ms" +
+-                    "\n" + DELIM + "\n" + results + DELIM + "\n");
+-        }
+-    };
+-}
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(date 1753308154243)
+@@ -1,36 +1,26 @@
+ package ru.javawebinar.topjava.service;
+ 
+-import org.junit.ClassRule;
+-import org.junit.Rule;
+-import org.junit.rules.ExternalResource;
+-import org.junit.rules.Stopwatch;
+-import org.junit.runner.RunWith;
++import org.junit.jupiter.api.extension.ExtendWith;
+ import org.springframework.test.context.ActiveProfiles;
+-import org.springframework.test.context.ContextConfiguration;
+ import org.springframework.test.context.jdbc.Sql;
+ import org.springframework.test.context.jdbc.SqlConfig;
+-import org.springframework.test.context.junit4.SpringRunner;
++import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+ import ru.javawebinar.topjava.ActiveDbProfileResolver;
+-import ru.javawebinar.topjava.TimingRules;
++import ru.javawebinar.topjava.TimingExtension;
+ 
+-import static org.junit.Assert.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static ru.javawebinar.topjava.util.ValidationUtil.getRootCause;
+ 
+-@ContextConfiguration({
++@SpringJUnitConfig(locations = {
+         "classpath:spring/spring-app.xml",
+         "classpath:spring/spring-db.xml"
+ })
+-@RunWith(SpringRunner.class)
+-@Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
++//@ExtendWith(SpringExtension.class)
+ @ActiveProfiles(resolver = ActiveDbProfileResolver.class)
++@Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
++@ExtendWith(TimingExtension.class)
+ public abstract class AbstractServiceTest {
+ 
+-    @ClassRule
+-    public static ExternalResource summary = TimingRules.SUMMARY;
+-
+-    @Rule
+-    public Stopwatch stopwatch = TimingRules.STOPWATCH;
+-
+     //  Check root cause in JUnit: https://github.com/junit-team/junit4/pull/778
+     protected <T extends Throwable> void validateRootCause(Class<T> rootExceptionClass, Runnable runnable) {
+         assertThrows(rootExceptionClass, () -> {
+Index: src/test/java/ru/javawebinar/topjava/service/jpa/JpaMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/jpa/JpaMealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/jpa/JpaMealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/jpa/JpaMealServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/jpa/JpaMealServiceTest.java	(date 1753308154179)
+@@ -6,5 +6,5 @@
+ import static ru.javawebinar.topjava.Profiles.JPA;
+ 
+ @ActiveProfiles(JPA)
+-public class JpaMealServiceTest extends AbstractMealServiceTest {
++class JpaMealServiceTest extends AbstractMealServiceTest {
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/jpa/JpaUserServiceTest.java	(date 1753308154229)
+@@ -6,5 +6,5 @@
+ import static ru.javawebinar.topjava.Profiles.JPA;
+ 
+ @ActiveProfiles(JPA)
+-public class JpaUserServiceTest extends AbstractUserServiceTest {
++class JpaUserServiceTest extends AbstractUserServiceTest {
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1753308154271)
+@@ -1,11 +1,8 @@
+ package ru.javawebinar.topjava.web;
+ 
+-import org.junit.runner.RunWith;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.test.context.ActiveProfiles;
+-import org.springframework.test.context.ContextConfiguration;
+-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+-import org.springframework.test.context.web.WebAppConfiguration;
++import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
+ import org.springframework.test.web.servlet.MockMvc;
+ import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+@@ -18,13 +15,13 @@
+ 
+ import javax.annotation.PostConstruct;
+ 
+-@ContextConfiguration({
++@SpringJUnitWebConfig(locations = {
+         "classpath:spring/spring-app.xml",
+         "classpath:spring/spring-mvc.xml",
+         "classpath:spring/spring-db.xml"
+ })
+-@WebAppConfiguration
+-@RunWith(SpringJUnit4ClassRunner.class)
++//@WebAppConfiguration
++//@ExtendWith(SpringExtension.class)
+ @Transactional
+ @ActiveProfiles(resolver = ActiveDbProfileResolver.class, profiles = Profiles.REPOSITORY_IMPLEMENTATION)
+ public abstract class AbstractControllerTest {
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(date 1753308154235)
+@@ -1,7 +1,7 @@
+ package ru.javawebinar.topjava.service;
+ 
+-import org.junit.Assert;
+-import org.junit.Test;
++import org.junit.jupiter.api.Assertions;
++import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.dao.DataAccessException;
+ import ru.javawebinar.topjava.model.Meal;
+@@ -12,7 +12,7 @@
+ import java.time.Month;
+ 
+ import static java.time.LocalDateTime.of;
+-import static org.junit.Assert.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
+ import static ru.javawebinar.topjava.UserTestData.USER_ID;
+@@ -23,23 +23,23 @@
+     protected MealService service;
+ 
+     @Test
+-    public void delete() {
++    void delete() {
+         service.delete(MEAL1_ID, USER_ID);
+         assertThrows(NotFoundException.class, () -> service.get(MEAL1_ID, USER_ID));
+     }
+ 
+     @Test
+-    public void deleteNotFound() {
++    void deleteNotFound() {
+         assertThrows(NotFoundException.class, () -> service.delete(NOT_FOUND, USER_ID));
+     }
+ 
+     @Test
+-    public void deleteNotOwn() {
++    void deleteNotOwn() {
+         assertThrows(NotFoundException.class, () -> service.delete(MEAL1_ID, ADMIN_ID));
+     }
+ 
+     @Test
+-    public void create() {
++    void create() {
+         Meal created = service.create(getNew(), USER_ID);
+         int newId = created.id();
+         Meal newMeal = getNew();
+@@ -49,48 +49,48 @@
+     }
+ 
+     @Test
+-    public void duplicateDateTimeCreate() {
++    void duplicateDateTimeCreate() {
+         assertThrows(DataAccessException.class, () ->
+                 service.create(new Meal(null, meal1.getDateTime(), "duplicate", 100), USER_ID));
+     }
+ 
+     @Test
+-    public void get() {
++    void get() {
+         Meal actual = service.get(ADMIN_MEAL_ID, ADMIN_ID);
+         MEAL_MATCHER.assertMatch(actual, adminMeal1);
+     }
+ 
+     @Test
+-    public void getNotFound() {
++    void getNotFound() {
+         assertThrows(NotFoundException.class, () -> service.get(NOT_FOUND, USER_ID));
+     }
+ 
+     @Test
+-    public void getNotOwn() {
++    void getNotOwn() {
+         assertThrows(NotFoundException.class, () -> service.get(MEAL1_ID, ADMIN_ID));
+     }
+ 
+     @Test
+-    public void update() {
++    void update() {
+         Meal updated = getUpdated();
+         service.update(updated, USER_ID);
+         MEAL_MATCHER.assertMatch(service.get(MEAL1_ID, USER_ID), getUpdated());
+     }
+ 
+     @Test
+-    public void updateNotOwn() {
++    void updateNotOwn() {
+         NotFoundException exception = assertThrows(NotFoundException.class, () -> service.update(getUpdated(), ADMIN_ID));
+-        Assert.assertEquals("Not found entity with id=" + MEAL1_ID, exception.getMessage());
++        Assertions.assertEquals("Not found entity with id=" + MEAL1_ID, exception.getMessage());
+         MEAL_MATCHER.assertMatch(service.get(MEAL1_ID, USER_ID), meal1);
+     }
+ 
+     @Test
+-    public void getAll() {
++    void getAll() {
+         MEAL_MATCHER.assertMatch(service.getAll(USER_ID), meals);
+     }
+ 
+     @Test
+-    public void getBetweenInclusive() {
++    void getBetweenInclusive() {
+         MEAL_MATCHER.assertMatch(service.getBetweenInclusive(
+                         LocalDate.of(2020, Month.JANUARY, 30),
+                         LocalDate.of(2020, Month.JANUARY, 30), USER_ID),
+@@ -98,12 +98,12 @@
+     }
+ 
+     @Test
+-    public void getBetweenWithNullDates() {
++    void getBetweenWithNullDates() {
+         MEAL_MATCHER.assertMatch(service.getBetweenInclusive(null, null, USER_ID), meals);
+     }
+ 
+     @Test
+-    public void createWithException() throws Exception {
++    void createWithException() throws Exception {
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "  ", 300), USER_ID));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new Meal(null, null, "Description", 300), USER_ID));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "Description", 9), USER_ID));
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1753308154277)
+@@ -1,21 +1,18 @@
+ package ru.javawebinar.topjava.web;
+ 
+-import org.junit.Test;
++import org.junit.jupiter.api.Test;
+ import ru.javawebinar.topjava.UserTestData;
+ 
+ import static org.hamcrest.Matchers.*;
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+-public class RootControllerTest extends AbstractControllerTest {
++class RootControllerTest extends AbstractControllerTest {
+ 
+     @Test
+-    public void getUsers() throws Exception {
++    void getUsers() throws Exception {
+         perform(get("/users"))
+                 .andDo(print())
+                 .andExpect(status().isOk())
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1753308154251)
+@@ -1,6 +1,6 @@
+ package ru.javawebinar.topjava.service;
+ 
+-import org.junit.Test;
++import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.dao.DataAccessException;
+ import ru.javawebinar.topjava.model.Role;
+@@ -12,7 +12,7 @@
+ import java.util.List;
+ import java.util.Set;
+ 
+-import static org.junit.Assert.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ public abstract class AbstractUserServiceTest extends AbstractServiceTest {
+@@ -21,7 +21,7 @@
+     protected UserService service;
+ 
+     @Test
+-    public void create() {
++    void create() {
+         User created = service.create(getNew());
+         int newId = created.id();
+         User newUser = getNew();
+@@ -31,54 +31,54 @@
+     }
+ 
+     @Test
+-    public void duplicateMailCreate() {
++    void duplicateMailCreate() {
+         assertThrows(DataAccessException.class, () ->
+                 service.create(new User(null, "Duplicate", "user@yandex.ru", "newPass", Role.USER)));
+     }
+ 
+     @Test
+-    public void delete() {
++    void delete() {
+         service.delete(USER_ID);
+         assertThrows(NotFoundException.class, () -> service.get(USER_ID));
+     }
+ 
+     @Test
+-    public void deletedNotFound() {
++    void deletedNotFound() {
+         assertThrows(NotFoundException.class, () -> service.delete(NOT_FOUND));
+     }
+ 
+     @Test
+-    public void get() {
++    void get() {
+         User user = service.get(ADMIN_ID);
+         USER_MATCHER.assertMatch(user, admin);
+     }
+ 
+     @Test
+-    public void getNotFound() {
++    void getNotFound() {
+         assertThrows(NotFoundException.class, () -> service.get(NOT_FOUND));
+     }
+ 
+     @Test
+-    public void getByEmail() {
++    void getByEmail() {
+         User user = service.getByEmail("admin@gmail.com");
+         USER_MATCHER.assertMatch(user, admin);
+     }
+ 
+     @Test
+-    public void update() {
++    void update() {
+         User updated = getUpdated();
+         service.update(updated);
+         USER_MATCHER.assertMatch(service.get(USER_ID), getUpdated());
+     }
+ 
+     @Test
+-    public void getAll() {
++    void getAll() {
+         List<User> all = service.getAll();
+         USER_MATCHER.assertMatch(all, admin, guest, user);
+     }
+ 
+     @Test
+-    public void createWithException() throws Exception {
++    void createWithException() throws Exception {
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "  ", "mail@yandex.ru", "password", Role.USER)));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "  ", "password", Role.USER)));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "  ", Role.USER)));
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaMealServiceTest.java	(date 1753308154035)
+@@ -1,7 +1,7 @@
+ package ru.javawebinar.topjava.service.datajpa;
+ 
+-import org.junit.Assert;
+-import org.junit.Test;
++import org.junit.jupiter.api.Assertions;
++import org.junit.jupiter.api.Test;
+ import org.springframework.test.context.ActiveProfiles;
+ import ru.javawebinar.topjava.MealTestData;
+ import ru.javawebinar.topjava.model.Meal;
+@@ -13,17 +13,17 @@
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ @ActiveProfiles(DATAJPA)
+-public class DataJpaMealServiceTest extends AbstractMealServiceTest {
++class DataJpaMealServiceTest extends AbstractMealServiceTest {
+     @Test
+-    public void getWithUser() {
++    void getWithUser() {
+         Meal adminMeal = service.getWithUser(ADMIN_MEAL_ID, ADMIN_ID);
+         MEAL_MATCHER.assertMatch(adminMeal, adminMeal1);
+         USER_MATCHER.assertMatch(adminMeal.getUser(), admin);
+     }
+ 
+     @Test
+-    public void getWithUserNotFound() {
+-        Assert.assertThrows(NotFoundException.class,
++    void getWithUserNotFound() {
++        Assertions.assertThrows(NotFoundException.class,
+                 () -> service.getWithUser(MealTestData.NOT_FOUND, ADMIN_ID));
+     }
+ }
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(date 1753308154041)
+@@ -1,7 +1,7 @@
+ package ru.javawebinar.topjava.service.datajpa;
+ 
+-import org.junit.Assert;
+-import org.junit.Test;
++import org.junit.jupiter.api.Assertions;
++import org.junit.jupiter.api.Test;
+ import org.springframework.test.context.ActiveProfiles;
+ import ru.javawebinar.topjava.MealTestData;
+ import ru.javawebinar.topjava.UserTestData;
+@@ -14,17 +14,17 @@
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ @ActiveProfiles(DATAJPA)
+-public class DataJpaUserServiceTest extends AbstractUserServiceTest {
++class DataJpaUserServiceTest extends AbstractUserServiceTest {
+     @Test
+-    public void getWithMeals() {
++    void getWithMeals() {
+         User admin = service.getWithMeals(ADMIN_ID);
+         USER_MATCHER.assertMatch(admin, UserTestData.admin);
+         MEAL_MATCHER.assertMatch(admin.getMeals(), MealTestData.adminMeal2, MealTestData.adminMeal1);
+     }
+ 
+     @Test
+-    public void getWithMealsNotFound() {
+-        Assert.assertThrows(NotFoundException.class,
++    void getWithMealsNotFound() {
++        Assertions.assertThrows(NotFoundException.class,
+                 () -> service.getWithMeals(NOT_FOUND));
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java	(date 1753308154129)
+@@ -6,5 +6,5 @@
+ import static ru.javawebinar.topjava.Profiles.JDBC;
+ 
+ @ActiveProfiles(JDBC)
+-public class JdbcUserServiceTest extends AbstractUserServiceTest {
++class JdbcUserServiceTest extends AbstractUserServiceTest {
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcMealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcMealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcMealServiceTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcMealServiceTest.java	(date 1753308154075)
+@@ -6,5 +6,5 @@
+ import static ru.javawebinar.topjava.Profiles.JDBC;
+ 
+ @ActiveProfiles(JDBC)
+-public class JdbcMealServiceTest extends AbstractMealServiceTest {
++class JdbcMealServiceTest extends AbstractMealServiceTest {
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerTest.java	(date 1753308154265)
+@@ -1,6 +1,6 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+-import org.junit.*;
++import org.junit.jupiter.api.*;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.context.ConfigurableApplicationContext;
+@@ -13,42 +13,42 @@
+ import static ru.javawebinar.topjava.UserTestData.NOT_FOUND;
+ import static ru.javawebinar.topjava.UserTestData.USER_ID;
+ 
+-public class InMemoryAdminRestControllerTest {
++class InMemoryAdminRestControllerTest {
+     private static final Logger log = LoggerFactory.getLogger(InMemoryAdminRestControllerTest.class);
+ 
+     private static ConfigurableApplicationContext appCtx;
+     private static AdminRestController controller;
+     private static InMemoryUserRepository repository;
+ 
+-    @BeforeClass
+-    public static void beforeClass() {
++    @BeforeAll
++    static void beforeClass() {
+         appCtx = new ClassPathXmlApplicationContext("spring/inmemory.xml");
+         log.info("\n{}\n", Arrays.toString(appCtx.getBeanDefinitionNames()));
+         controller = appCtx.getBean(AdminRestController.class);
+         repository = appCtx.getBean(InMemoryUserRepository.class);
+     }
+ 
+-    @AfterClass
+-    public static void afterClass() {
++    @AfterAll
++    static void afterClass() {
+         //        May cause during JUnit "Cache is not alive (STATUS_SHUTDOWN)" as JUnit share Spring context for speed
+         //        http://stackoverflow.com/questions/16281802/ehcache-shutdown-causing-an-exception-while-running-test-suite
+         //        appCtx.close();
+     }
+ 
+-    @Before
+-    public void setup() {
++    @BeforeEach
++    void setup() {
+         // re-initialize
+         repository.init();
+     }
+ 
+     @Test
+-    public void delete() {
++    void delete() {
+         controller.delete(USER_ID);
+-        Assert.assertNull(repository.get(USER_ID));
++        Assertions.assertNull(repository.get(USER_ID));
+     }
+ 
+     @Test
+-    public void deleteNotFound() {
+-        Assert.assertThrows(NotFoundException.class, () -> controller.delete(NOT_FOUND));
++    void deleteNotFound() {
++        Assertions.assertThrows(NotFoundException.class, () -> controller.delete(NOT_FOUND));
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/TimingExtension.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/TimingExtension.java b/src/test/java/ru/javawebinar/topjava/TimingExtension.java
+new file mode 100644
+--- /dev/null	(date 1753308154283)
++++ b/src/test/java/ru/javawebinar/topjava/TimingExtension.java	(date 1753308154283)
+@@ -0,0 +1,36 @@
++package ru.javawebinar.topjava;
++
++import org.junit.jupiter.api.extension.*;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.util.StopWatch;
++
++public class TimingExtension implements
++        BeforeTestExecutionCallback, AfterTestExecutionCallback, BeforeAllCallback, AfterAllCallback {
++
++    private static final Logger log = LoggerFactory.getLogger("result");
++
++    private StopWatch stopWatch;
++
++    @Override
++    public void beforeAll(ExtensionContext extensionContext) {
++        stopWatch = new StopWatch("Execution time of " + extensionContext.getRequiredTestClass().getSimpleName());
++    }
++
++    @Override
++    public void beforeTestExecution(ExtensionContext extensionContext) {
++        String testName = extensionContext.getDisplayName();
++        log.info("\nStart " + testName);
++        stopWatch.start(testName);
++    }
++
++    @Override
++    public void afterTestExecution(ExtensionContext extensionContext) {
++        stopWatch.stop();
++    }
++
++    @Override
++    public void afterAll(ExtensionContext extensionContext) {
++        log.info('\n' + stopWatch.prettyPrint() + '\n');
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java b/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/InMemoryAdminRestControllerSpringTest.java	(date 1753308154259)
+@@ -1,21 +1,18 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+-import org.junit.Assert;
+-import org.junit.Before;
+-import org.junit.Test;
+-import org.junit.runner.RunWith;
++import org.junit.jupiter.api.Assertions;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.test.context.ContextConfiguration;
+-import org.springframework.test.context.junit4.SpringRunner;
++import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+ import ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepository;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import static ru.javawebinar.topjava.UserTestData.NOT_FOUND;
+ import static ru.javawebinar.topjava.UserTestData.USER_ID;
+ 
+-@ContextConfiguration({"classpath:spring/inmemory.xml"})
+-@RunWith(SpringRunner.class)
+-public class InMemoryAdminRestControllerSpringTest {
++@SpringJUnitConfig(locations = {"classpath:spring/inmemory.xml"})
++class InMemoryAdminRestControllerSpringTest {
+ 
+     @Autowired
+     private AdminRestController controller;
+@@ -23,19 +20,19 @@
+     @Autowired
+     private InMemoryUserRepository repository;
+ 
+-    @Before
+-    public void setup() {
++    @BeforeEach
++    void setup() {
+         repository.init();
+     }
+ 
+     @Test
+-    public void delete() {
++    void delete() {
+         controller.delete(USER_ID);
+-        Assert.assertNull(repository.get(USER_ID));
++        Assertions.assertNull(repository.get(USER_ID));
+     }
+ 
+     @Test
+-    public void deleteNotFound() {
+-        Assert.assertThrows(NotFoundException.class, () -> controller.delete(NOT_FOUND));
++    void deleteNotFound() {
++        Assertions.assertThrows(NotFoundException.class, () -> controller.delete(NOT_FOUND));
+     }
+ }
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 7cd34930816cab0ed2e4c2df9210f35d0ca2ffc7)
++++ b/pom.xml	(date 1753308628217)
+@@ -34,7 +34,7 @@
+         <!--DB-->
+         <postgresql.version>42.7.7</postgresql.version>
+         <!--    Tests  -->
+-        <junit.version>4.13.2</junit.version>
++        <junit.version>5.13.4</junit.version>
+         <assertj.version>3.27.3</assertj.version>
+         <hamcrest.version>1.3</hamcrest.version>
+     </properties>
+@@ -58,6 +58,7 @@
+                 </configuration>
+             </plugin>
+             <plugin>
++                <!--https://junit.org/junit5/docs/current/user-guide/#running-tests-build-maven -->
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+                 <version>3.5.3</version>
+@@ -222,16 +223,10 @@
+ 
+         <!--Test-->
+         <dependency>
+-            <groupId>junit</groupId>
+-            <artifactId>junit</artifactId>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter-engine</artifactId>
+             <version>${junit.version}</version>
+             <scope>test</scope>
+-            <exclusions>
+-                <exclusion>
+-                    <artifactId>hamcrest-core</artifactId>
+-                    <groupId>org.hamcrest</groupId>
+-                </exclusion>
+-            </exclusions>
+         </dependency>
+         <dependency>
+             <groupId>org.hamcrest</groupId>
+@@ -250,6 +245,14 @@
+             <version>${assertj.version}</version>
+             <scope>test</scope>
+         </dependency>
++
++        <!--        https://youtrack.jetbrains.com/issue/IDEA-231927  -->
++        <dependency>
++            <groupId>org.junit.platform</groupId>
++            <artifactId>junit-platform-launcher</artifactId>
++            <version>1.13.4</version>
++            <scope>test</scope>
++        </dependency>
+     </dependencies>
+ 
+     <profiles>

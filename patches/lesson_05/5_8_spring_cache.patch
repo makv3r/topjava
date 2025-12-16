@@ -1,0 +1,219 @@
+Index: src/main/resources/spring/spring-app.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-app.xml b/src/main/resources/spring/spring-app.xml
+--- a/src/main/resources/spring/spring-app.xml	(revision ffac1f36250f7e6b74a583e10a9e7bb6e104dc1d)
++++ b/src/main/resources/spring/spring-app.xml	(date 1677692556389)
+@@ -9,6 +9,7 @@
+         <constructor-arg name="repository" ref="inmemoryUserRepository"/>
+     </bean>
+ -->
++    <import resource="spring-cache.xml"/>
+ 
+     <context:component-scan base-package="ru.javawebinar.**.service"/>
+ 
+Index: src/main/resources/cache/ehcache.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/cache/ehcache.xml b/src/main/resources/cache/ehcache.xml
+new file mode 100644
+--- /dev/null	(date 1677692556374)
++++ b/src/main/resources/cache/ehcache.xml	(date 1677692556374)
+@@ -0,0 +1,25 @@
++<config xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
++        xmlns='http://www.ehcache.org/v3'
++        xsi:schemaLocation="http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core-3.0.xsd">
++
++    <!--http://www.ehcache.org/documentation/3.8/xml.html-->
++    <!--http://www.ehcache.org/documentation/3.8/107.html#supplement-jsr-107-configurations-->
++
++    <!--<persistence directory="${user.home}/cache-data"/>-->
++
++    <cache-template name="expiryCache">
++        <expiry>
++            <ttl unit="minutes">5</ttl>
++        </expiry>
++        <heap unit="entries">5000</heap>
++    </cache-template>
++
++    <cache-template name="singleNonExpiryCache">
++        <expiry>
++            <none/>
++        </expiry>
++        <heap>1</heap>
++    </cache-template>
++
++    <cache alias="users" uses-template="singleNonExpiryCache"/>
++</config>
+Index: src/main/resources/spring/spring-cache.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-cache.xml b/src/main/resources/spring/spring-cache.xml
+new file mode 100644
+--- /dev/null	(date 1677692556389)
++++ b/src/main/resources/spring/spring-cache.xml	(date 1677692556389)
+@@ -0,0 +1,20 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<beans xmlns="http://www.springframework.org/schema/beans"
++       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++       xmlns:cache="http://www.springframework.org/schema/cache"
++       xmlns:p="http://www.springframework.org/schema/p"
++       xsi:schemaLocation="http://www.springframework.org/schema/beans
++         http://www.springframework.org/schema/beans/spring-beans.xsd
++         http://www.springframework.org/schema/cache
++         http://www.springframework.org/schema/cache/spring-cache.xsd">
++
++    <!-- enables scanning for @Cacheable annotation -->
++    <cache:annotation-driven cache-manager="ehCacheManager"/>
++
++    <!--https://imhoratiu.wordpress.com/2017/01/26/spring-4-with-ehcache-3-how-to/-->
++    <bean id="ehCacheManager" class="org.springframework.cache.jcache.JCacheCacheManager">
++        <property name="cacheManager">
++            <bean class="org.springframework.cache.jcache.JCacheManagerFactoryBean" p:cacheManagerUri="classpath:cache/ehcache.xml"/>
++        </property>
++    </bean>
++</beans>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/UserService.java b/src/main/java/ru/javawebinar/topjava/service/UserService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision ffac1f36250f7e6b74a583e10a9e7bb6e104dc1d)
++++ b/src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1677692556374)
+@@ -1,5 +1,7 @@
+ package ru.javawebinar.topjava.service;
+ 
++import org.springframework.cache.annotation.CacheEvict;
++import org.springframework.cache.annotation.Cacheable;
+ import org.springframework.stereotype.Service;
+ import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.model.User;
+@@ -19,11 +21,13 @@
+         this.repository = repository;
+     }
+ 
++    @CacheEvict(value = "users", allEntries = true)
+     public User create(User user) {
+         Assert.notNull(user, "user must not be null");
+         return repository.save(user);
+     }
+ 
++    @CacheEvict(value = "users", allEntries = true)
+     public void delete(int id) {
+         checkNotFoundWithId(repository.delete(id), id);
+     }
+@@ -37,10 +41,12 @@
+         return checkNotFound(repository.getByEmail(email), "email=" + email);
+     }
+ 
++    @Cacheable("users")
+     public List<User> getAll() {
+         return repository.getAll();
+     }
+ 
++    @CacheEvict(value = "users", allEntries = true)
+     public void update(User user) {
+         Assert.notNull(user, "user must not be null");
+         checkNotFoundWithId(repository.save(user), user.id());
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision ffac1f36250f7e6b74a583e10a9e7bb6e104dc1d)
++++ b/pom.xml	(date 1677692690864)
+@@ -24,6 +24,9 @@
+         <hibernate-validator.version>6.2.5.Final</hibernate-validator.version>
+         <javax-el.version>3.0.1-b12</javax-el.version>
+ 
++        <!--Cache-->
++        <ehcache.version>3.10.8</ehcache.version>
++
+         <!-- Logging -->
+         <logback.version>1.2.11</logback.version>
+         <slf4j.version>1.7.36</slf4j.version>
+@@ -88,7 +91,7 @@
+         <!-- Spring -->
+         <dependency>
+             <groupId>org.springframework</groupId>
+-            <artifactId>spring-context</artifactId>
++            <artifactId>spring-context-support</artifactId>
+         </dependency>
+         <dependency>
+             <groupId>org.springframework.data</groupId>
+@@ -115,6 +118,32 @@
+             <version>${javax-el.version}</version>
+             <scope>provided</scope>
+         </dependency>
++
++        <!-- Cache -->
++        <dependency>
++            <groupId>javax.cache</groupId>
++            <artifactId>cache-api</artifactId>
++            <version>1.1.0</version>
++        </dependency>
++        <dependency>
++            <groupId>org.ehcache</groupId>
++            <artifactId>ehcache</artifactId>
++            <scope>runtime</scope>
++            <version>${ehcache.version}</version>
++            <exclusions>
++                <exclusion>
++                    <groupId>org.glassfish.jaxb</groupId>
++                    <artifactId>jaxb-runtime</artifactId>
++                </exclusion>
++            </exclusions>
++        </dependency>
++
++        <!--https://medium.com/criciumadev/its-time-migrating-to-java-11-5eb3868354f9-->
++        <dependency>
++            <groupId>org.glassfish.jaxb</groupId>
++            <artifactId>jaxb-runtime</artifactId>
++            <version>2.4.0-b180830.0438</version>
++        </dependency>
+ 
+         <!--Web-->
+         <dependency>
+Index: src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(revision ffac1f36250f7e6b74a583e10a9e7bb6e104dc1d)
++++ b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(date 1677692556405)
+@@ -1,8 +1,10 @@
+ package ru.javawebinar.topjava.service;
+ 
++import org.junit.Before;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.cache.CacheManager;
+ import org.springframework.dao.DataAccessException;
+ import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.test.context.ContextConfiguration;
+@@ -32,6 +34,14 @@
+     @Autowired
+     private UserService service;
+ 
++    @Autowired
++    private CacheManager cacheManager;
++
++    @Before
++    public void setup() {
++        cacheManager.getCache("users").clear();
++    }
++
+     @Test
+     public void create() {
+         User created = service.create(getNew());

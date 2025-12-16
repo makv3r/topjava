@@ -1,0 +1,217 @@
+Subject: [PATCH] 11_13_swagger2
+---
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1703107858672)
+@@ -7,9 +7,11 @@
+ import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
++import springfox.documentation.annotations.ApiIgnore;
+ 
+ import java.util.List;
+ 
++@ApiIgnore
+ @RestController
+ @RequestMapping(value = "/admin/users", produces = MediaType.APPLICATION_JSON_VALUE)
+ public class AdminUIController extends AbstractUserController {
+Index: src/main/webapp/WEB-INF/jsp/login.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/login.jsp b/src/main/webapp/WEB-INF/jsp/login.jsp
+--- a/src/main/webapp/WEB-INF/jsp/login.jsp	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/webapp/WEB-INF/jsp/login.jsp	(date 1703107858707)
+@@ -54,7 +54,9 @@
+         </div>
+     </div>
+ </div>
+-<div class="container lead"><spring:message code="app.description"/>
++<div class="container">
++    <div class="lead"><spring:message code="app.description"/></div>
++    <a class="btn btn-lg btn-success my-4" href="swagger-ui.html" target="_blank">Swagger REST Api Documentation</a>
+ </div>
+ <jsp:include page="fragments/footer.jsp"/>
+ <script type="text/javascript">
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1703107858663)
+@@ -8,11 +8,13 @@
+ import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
++import springfox.documentation.annotations.ApiIgnore;
+ 
+ import java.time.LocalDate;
+ import java.time.LocalTime;
+ import java.util.List;
+ 
++@ApiIgnore
+ @RestController
+ @RequestMapping(value = "/profile/meals", produces = MediaType.APPLICATION_JSON_VALUE)
+ public class MealUIController extends AbstractMealController {
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1703107858697)
+@@ -52,6 +52,10 @@
+     <!-- use WebJars so Javascript and CSS libs can be declared as Maven dependencies (Bootstrap, jQuery...) -->
+     <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>
+ 
++    <!--  Swagger2  https://medium.com/@andreymamontov/swagger-2-configuration-with-spring-xml-3cd643a12425 -->
++    <bean class="springfox.documentation.swagger2.configuration.Swagger2DocumentationConfiguration"/>
++    <mvc:resources mapping="swagger-ui.html" location="classpath:/META-INF/resources/" />
++
+     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver"
+           p:prefix="/WEB-INF/jsp/"
+           p:suffix=".jsp"/>
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1703107858686)
+@@ -12,9 +12,9 @@
+ import ru.javawebinar.topjava.AuthorizedUser;
+ import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.to.UserTo;
++import springfox.documentation.annotations.ApiIgnore;
+ 
+-import javax.validation.Valid;
+-
++@ApiIgnore
+ @Controller
+ @RequestMapping("/profile")
+ public class ProfileUIController extends AbstractUserController {
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1703107858678)
+@@ -11,6 +11,7 @@
+ import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
++import springfox.documentation.annotations.ApiIgnore;
+ 
+ import java.net.URI;
+ 
+@@ -20,13 +21,13 @@
+     static final String REST_URL = "/rest/profile";
+ 
+     @GetMapping
+-    public User get(@AuthenticationPrincipal AuthorizedUser authUser) {
++    public User get(@AuthenticationPrincipal @ApiIgnore AuthorizedUser authUser) {
+         return super.get(authUser.getId());
+     }
+ 
+     @DeleteMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void delete(@AuthenticationPrincipal AuthorizedUser authUser) {
++    public void delete(@AuthenticationPrincipal @ApiIgnore AuthorizedUser authUser) {
+         super.delete(authUser.getId());
+     }
+ 
+@@ -41,7 +42,7 @@
+ 
+     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void update(@Validated(View.Web.class) @RequestBody UserTo userTo, @AuthenticationPrincipal AuthorizedUser authUser) {
++    public void update(@Validated(View.Web.class) @RequestBody UserTo userTo, @ApiIgnore @AuthenticationPrincipal AuthorizedUser authUser) {
+         super.update(userTo, authUser.getId());
+     }
+ 
+@@ -51,7 +52,7 @@
+     }
+ 
+     @GetMapping("/with-meals")
+-    public User getWithMeals(@AuthenticationPrincipal AuthorizedUser authUser) {
++    public User getWithMeals( @ApiIgnore @AuthenticationPrincipal AuthorizedUser authUser) {
+         return super.getWithMeals(authUser.getId());
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/RootController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/RootController.java b/src/main/java/ru/javawebinar/topjava/web/RootController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/RootController.java	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/java/ru/javawebinar/topjava/web/RootController.java	(date 1703107858692)
+@@ -5,7 +5,9 @@
+ import org.springframework.security.access.prepost.PreAuthorize;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.web.bind.annotation.GetMapping;
++import springfox.documentation.annotations.ApiIgnore;
+ 
++@ApiIgnore
+ @Controller
+ public class RootController {
+     private static final Logger log = LoggerFactory.getLogger(RootController.class);
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-security.xml b/src/main/resources/spring/spring-security.xml
+--- a/src/main/resources/spring/spring-security.xml	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/src/main/resources/spring/spring-security.xml	(date 1703107858701)
+@@ -19,6 +19,11 @@
+ 
+     <http>
+         <intercept-url pattern="/login" access="permitAll()"/>
++
++        <intercept-url pattern="/swagger-ui.html" access="permitAll()"/>
++        <intercept-url pattern="/swagger-resources/**" access="permitAll()"/>
++        <intercept-url pattern="/v2/api-docs/**" access="permitAll()"/>
++
+         <intercept-url pattern="/profile/register" access="isAnonymous()"/>
+ 
+         <intercept-url pattern="/admin/**" access="hasRole('ADMIN')"/>
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 252dcdb1898c5fb64371639f69f4e16b97b55439)
++++ b/pom.xml	(date 1703107858714)
+@@ -154,6 +154,17 @@
+             <version>${spring-data-jpa.version}</version>
+         </dependency>
+ 
++        <dependency>
++            <groupId>io.springfox</groupId>
++            <artifactId>springfox-swagger2</artifactId>
++            <version>2.9.2</version>
++        </dependency>
++        <dependency>
++            <groupId>io.springfox</groupId>
++            <artifactId>springfox-swagger-ui</artifactId>
++            <version>2.9.2</version>
++        </dependency>
++
+         <!--security-->
+         <dependency>
+             <groupId>org.springframework.security</groupId>

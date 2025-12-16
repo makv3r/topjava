@@ -1,0 +1,248 @@
+Subject: [PATCH] 4_1_HW3
+---
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(revision 46cb3b717d9667904bd4b80e30996dadb983ad41)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(date 1677068508313)
+@@ -1,5 +1,13 @@
+ package ru.javawebinar.topjava.repository.jdbc;
+ 
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.dao.support.DataAccessUtils;
++import org.springframework.jdbc.core.BeanPropertyRowMapper;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.core.RowMapper;
++import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
++import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
++import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+ import org.springframework.stereotype.Repository;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+@@ -10,28 +18,69 @@
+ @Repository
+ public class JdbcMealRepository implements MealRepository {
+ 
++    private static final RowMapper<Meal> ROW_MAPPER = BeanPropertyRowMapper.newInstance(Meal.class);
++
++    private final JdbcTemplate jdbcTemplate;
++
++    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
++
++    private final SimpleJdbcInsert insertMeal;
++
++    @Autowired
++    public JdbcMealRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
++        this.insertMeal = new SimpleJdbcInsert(jdbcTemplate)
++                .withTableName("meal")
++                .usingGeneratedKeyColumns("id");
++
++        this.jdbcTemplate = jdbcTemplate;
++        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
++    }
++
+     @Override
+     public Meal save(Meal meal, int userId) {
+-        return null;
++        MapSqlParameterSource map = new MapSqlParameterSource()
++                .addValue("id", meal.getId())
++                .addValue("description", meal.getDescription())
++                .addValue("calories", meal.getCalories())
++                .addValue("date_time", meal.getDateTime())
++                .addValue("user_id", userId);
++
++        if (meal.isNew()) {
++            Number newId = insertMeal.executeAndReturnKey(map);
++            meal.setId(newId.intValue());
++        } else {
++            if (namedParameterJdbcTemplate.update("" +
++                    "UPDATE meal " +
++                    "   SET description=:description, calories=:calories, date_time=:date_time " +
++                    " WHERE id=:id AND user_id=:user_id", map) == 0) {
++                return null;
++            }
++        }
++        return meal;
+     }
+ 
+     @Override
+     public boolean delete(int id, int userId) {
+-        return false;
++        return jdbcTemplate.update("DELETE FROM meal WHERE id=? AND user_id=?", id, userId) != 0;
+     }
+ 
+     @Override
+     public Meal get(int id, int userId) {
+-        return null;
++        List<Meal> meals = jdbcTemplate.query(
++                "SELECT * FROM meal WHERE id = ? AND user_id = ?", ROW_MAPPER, id, userId);
++        return DataAccessUtils.singleResult(meals);
+     }
+ 
+     @Override
+     public List<Meal> getAll(int userId) {
+-        return null;
++        return jdbcTemplate.query(
++                "SELECT * FROM meal WHERE user_id=? ORDER BY date_time DESC", ROW_MAPPER, userId);
+     }
+ 
+     @Override
+     public List<Meal> getBetweenHalfOpen(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId) {
+-        return null;
++        return jdbcTemplate.query(
++                "SELECT * FROM meal WHERE user_id=?  AND date_time >=  ? AND date_time < ? ORDER BY date_time DESC",
++                ROW_MAPPER, userId, startDateTime, endDateTime);
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(revision 46cb3b717d9667904bd4b80e30996dadb983ad41)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(date 1677068302949)
+@@ -4,7 +4,7 @@
+ import org.springframework.dao.support.DataAccessUtils;
+ import org.springframework.jdbc.core.BeanPropertyRowMapper;
+ import org.springframework.jdbc.core.JdbcTemplate;
+-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
++import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
+ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+ import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+ import org.springframework.stereotype.Repository;
+@@ -36,21 +36,14 @@
+ 
+     @Override
+     public User save(User user) {
+-        MapSqlParameterSource map = new MapSqlParameterSource()
+-                .addValue("id", user.getId())
+-                .addValue("name", user.getName())
+-                .addValue("email", user.getEmail())
+-                .addValue("password", user.getPassword())
+-                .addValue("registered", user.getRegistered())
+-                .addValue("enabled", user.isEnabled())
+-                .addValue("caloriesPerDay", user.getCaloriesPerDay());
++        BeanPropertySqlParameterSource parameterSource = new BeanPropertySqlParameterSource(user);
+ 
+         if (user.isNew()) {
+-            Number newKey = insertUser.executeAndReturnKey(map);
++            Number newKey = insertUser.executeAndReturnKey(parameterSource);
+             user.setId(newKey.intValue());
+         } else if (namedParameterJdbcTemplate.update(
+                 "UPDATE users SET name=:name, email=:email, password=:password, " +
+-                        "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", map) == 0) {
++                        "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", parameterSource) == 0) {
+             return null;
+         }
+         return user;
+Index: src/main/resources/db/populateDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/populateDB.sql b/src/main/resources/db/populateDB.sql
+--- a/src/main/resources/db/populateDB.sql	(revision 46cb3b717d9667904bd4b80e30996dadb983ad41)
++++ b/src/main/resources/db/populateDB.sql	(date 1677068755946)
+@@ -1,4 +1,5 @@
+ DELETE FROM user_role;
++DELETE FROM meal;
+ DELETE FROM users;
+ ALTER SEQUENCE global_seq RESTART WITH 100000;
+ 
+@@ -10,3 +11,14 @@
+ INSERT INTO user_role (role, user_id)
+ VALUES ('USER', 100000),
+        ('ADMIN', 100001);
++
++INSERT INTO meal (date_time, description, calories, user_id)
++VALUES ('2020-01-30 10:00:00', 'Завтрак', 500, 100000),
++       ('2020-01-30 13:00:00', 'Обед', 1000, 100000),
++       ('2020-01-30 20:00:00', 'Ужин', 500, 100000),
++       ('2020-01-31 0:00:00', 'Еда на граничное значение', 100, 100000),
++       ('2020-01-31 10:00:00', 'Завтрак', 500, 100000),
++       ('2020-01-31 13:00:00', 'Обед', 1000, 100000),
++       ('2020-01-31 20:00:00', 'Ужин', 510, 100000),
++       ('2020-01-31 14:00:00', 'Админ ланч', 510, 100001),
++       ('2020-01-31 21:00:00', 'Админ ужин', 1500, 100001);
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 46cb3b717d9667904bd4b80e30996dadb983ad41)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1677068302938)
+@@ -5,11 +5,14 @@
+ import java.time.LocalTime;
+ 
+ public class Meal extends AbstractBaseEntity {
+-    private final LocalDateTime dateTime;
++    private LocalDateTime dateTime;
+ 
+-    private final String description;
++    private String description;
+ 
+-    private final int calories;
++    private int calories;
++
++    public Meal() {
++    }
+ 
+     public Meal(LocalDateTime dateTime, String description, int calories) {
+         this(null, dateTime, description, calories);
+@@ -42,6 +45,18 @@
+         return dateTime.toLocalTime();
+     }
+ 
++    public void setDateTime(LocalDateTime dateTime) {
++        this.dateTime = dateTime;
++    }
++
++    public void setDescription(String description) {
++        this.description = description;
++    }
++
++    public void setCalories(int calories) {
++        this.calories = calories;
++    }
++
+     @Override
+     public String toString() {
+         return "Meal{" +
+Index: src/main/resources/db/initDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/initDB.sql b/src/main/resources/db/initDB.sql
+--- a/src/main/resources/db/initDB.sql	(revision 46cb3b717d9667904bd4b80e30996dadb983ad41)
++++ b/src/main/resources/db/initDB.sql	(date 1677068508307)
+@@ -1,4 +1,5 @@
+ DROP TABLE IF EXISTS user_role;
++DROP TABLE IF EXISTS meal;
+ DROP TABLE IF EXISTS users;
+ DROP SEQUENCE IF EXISTS global_seq;
+ 
+@@ -22,4 +23,15 @@
+     role    VARCHAR NOT NULL,
+     CONSTRAINT user_roles_idx UNIQUE (user_id, role),
+     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+-);
+\ No newline at end of file
++);
++
++CREATE TABLE meal
++(
++    id          INTEGER PRIMARY KEY DEFAULT nextval('global_seq'),
++    user_id     INTEGER   NOT NULL,
++    date_time   TIMESTAMP NOT NULL,
++    description TEXT      NOT NULL,
++    calories    INT       NOT NULL,
++    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
++);
++CREATE UNIQUE INDEX meal_unique_user_datetime_idx ON meal (user_id, date_time);
+\ No newline at end of file

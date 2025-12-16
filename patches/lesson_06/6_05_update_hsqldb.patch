@@ -1,0 +1,112 @@
+Subject: [PATCH] 6_05_update_hsqldb
+---
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(revision f73da0d23a3de425311d24968c2c8d55883b51bf)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(date 1730926832234)
+@@ -1,6 +1,5 @@
+ package ru.javawebinar.topjava.repository.jdbc;
+ 
+-import org.springframework.context.annotation.Profile;
+ import org.springframework.dao.support.DataAccessUtils;
+ import org.springframework.jdbc.core.BeanPropertyRowMapper;
+ import org.springframework.jdbc.core.JdbcTemplate;
+@@ -9,15 +8,14 @@
+ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+ import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+ import org.springframework.stereotype.Repository;
+-import ru.javawebinar.topjava.Profiles;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ 
+-import java.sql.Timestamp;
+ import java.time.LocalDateTime;
+ import java.util.List;
+ 
+-public abstract class JdbcMealRepository<T> implements MealRepository {
++@Repository
++public class JdbcMealRepository implements MealRepository {
+ 
+     private static final RowMapper<Meal> ROW_MAPPER = BeanPropertyRowMapper.newInstance(Meal.class);
+ 
+@@ -27,7 +25,7 @@
+ 
+     private final SimpleJdbcInsert insertMeal;
+ 
+-    JdbcMealRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
++    public JdbcMealRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+         this.insertMeal = new SimpleJdbcInsert(jdbcTemplate)
+                 .withTableName("meal")
+                 .usingGeneratedKeyColumns("id");
+@@ -36,41 +34,13 @@
+         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+     }
+ 
+-    protected abstract T toDbDateTime(LocalDateTime ldt);
+-
+-    @Repository
+-    @Profile(Profiles.POSTGRES_DB)
+-    public static class Java8JdbcMealRepository extends JdbcMealRepository<LocalDateTime> {
+-        public Java8JdbcMealRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+-            super(jdbcTemplate, namedParameterJdbcTemplate);
+-        }
+-
+-        @Override
+-        protected LocalDateTime toDbDateTime(LocalDateTime ldt) {
+-            return ldt;
+-        }
+-    }
+-
+-    @Repository
+-    @Profile(Profiles.HSQL_DB)
+-    public static class TimestampJdbcMealRepository extends JdbcMealRepository<Timestamp> {
+-        public TimestampJdbcMealRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+-            super(jdbcTemplate, namedParameterJdbcTemplate);
+-        }
+-
+-        @Override
+-        protected Timestamp toDbDateTime(LocalDateTime ldt) {
+-            return Timestamp.valueOf(ldt);
+-        }
+-    }
+-
+     @Override
+     public Meal save(Meal meal, int userId) {
+         MapSqlParameterSource map = new MapSqlParameterSource()
+                 .addValue("id", meal.getId())
+                 .addValue("description", meal.getDescription())
+                 .addValue("calories", meal.getCalories())
+-                .addValue("date_time", toDbDateTime(meal.getDateTime()))
++                .addValue("date_time", meal.getDateTime())
+                 .addValue("user_id", userId);
+ 
+         if (meal.isNew()) {
+@@ -109,6 +79,6 @@
+     public List<Meal> getBetweenHalfOpen(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId) {
+         return jdbcTemplate.query(
+                 "SELECT * FROM meal WHERE user_id=?  AND date_time >=  ? AND date_time < ? ORDER BY date_time DESC",
+-                ROW_MAPPER, userId, toDbDateTime(startDateTime), toDbDateTime(endDateTime));
++                ROW_MAPPER, userId, startDateTime, endDateTime);
+     }
+ }
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision f73da0d23a3de425311d24968c2c8d55883b51bf)
++++ b/pom.xml	(date 1730926839019)
+@@ -194,7 +194,7 @@
+                 <dependency>
+                     <groupId>org.hsqldb</groupId>
+                     <artifactId>hsqldb</artifactId>
+-                    <version>2.3.4</version>
++                    <version>2.7.4</version>
+                 </dependency>
+             </dependencies>
+         </profile>

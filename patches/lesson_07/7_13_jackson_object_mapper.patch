@@ -1,0 +1,149 @@
+Subject: [PATCH] 7_13_jackson_object_mapper
+---
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision fc4cad0d5887710ad51dbb6ae5f11c52be0bcb6f)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1732132887837)
+@@ -5,7 +5,16 @@
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+ 
+-    <mvc:annotation-driven/>
++    <mvc:annotation-driven>
++        <mvc:message-converters>
++            <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
++                <property name="objectMapper">
++                    <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper"/>
++                </property>
++            </bean>
++        </mvc:message-converters>
++    </mvc:annotation-driven>
++
+ 
+     <context:component-scan base-package="ru.javawebinar.**.web"/>
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java b/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+new file mode 100644
+--- /dev/null	(date 1732132887829)
++++ b/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(date 1732132887829)
+@@ -0,0 +1,31 @@
++package ru.javawebinar.topjava.web.json;
++
++import com.fasterxml.jackson.annotation.JsonAutoDetect;
++import com.fasterxml.jackson.annotation.JsonInclude;
++import com.fasterxml.jackson.annotation.PropertyAccessor;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.databind.SerializationFeature;
++import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
++import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
++
++/**
++ * <p>
++ * Handling Hibernate lazy-loading
++ *
++ * @link https://github.com/FasterXML/jackson
++ * @link https://github.com/FasterXML/jackson-datatype-hibernate
++ * @link https://github.com/FasterXML/jackson-docs/wiki/JacksonHowToCustomSerializers
++ */
++public class JacksonObjectMapper extends ObjectMapper {
++
++    private JacksonObjectMapper() {
++        registerModule(new Hibernate5Module());
++
++        registerModule(new JavaTimeModule());
++        configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
++
++        setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE);
++        setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
++        setSerializationInclusion(JsonInclude.Include.NON_NULL);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+--- a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision fc4cad0d5887710ad51dbb6ae5f11c52be0bcb6f)
++++ b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1732132903914)
+@@ -1,19 +1,16 @@
+ package ru.javawebinar.topjava.model;
+ 
+-import com.fasterxml.jackson.annotation.JsonAutoDetect;
+ import org.springframework.data.domain.Persistable;
+ import org.springframework.util.Assert;
+ 
+ import javax.persistence.*;
+ 
+-import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.ANY;
+-import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE;
+ import static org.hibernate.proxy.HibernateProxyHelper.getClassWithoutInitializingProxy;
+ 
+ @MappedSuperclass
+ // http://stackoverflow.com/questions/594597/hibernate-annotations-which-is-better-field-or-property-access
+ @Access(AccessType.FIELD)
+-@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
++//@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
+ public abstract class AbstractBaseEntity implements Persistable<Integer> {
+     public static final int START_SEQ = 100000;
+ 
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision fc4cad0d5887710ad51dbb6ae5f11c52be0bcb6f)
++++ b/pom.xml	(date 1732132887848)
+@@ -228,6 +228,16 @@
+             <artifactId>jackson-databind</artifactId>
+             <version>${jackson.version}</version>
+         </dependency>
++        <dependency>
++            <groupId>com.fasterxml.jackson.datatype</groupId>
++            <artifactId>jackson-datatype-hibernate5</artifactId>
++            <version>${jackson.version}</version>
++        </dependency>
++        <dependency>
++            <groupId>com.fasterxml.jackson.datatype</groupId>
++            <artifactId>jackson-datatype-jsr310</artifactId>
++            <version>${jackson.version}</version>
++        </dependency>
+ 
+         <!--Test-->
+         <dependency>
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision fc4cad0d5887710ad51dbb6ae5f11c52be0bcb6f)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1732132887820)
+@@ -4,7 +4,6 @@
+ import org.hibernate.annotations.*;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
+-import com.fasterxml.jackson.annotation.JsonIgnore;
+ 
+ import javax.persistence.Entity;
+ import javax.persistence.NamedQueries;
+@@ -71,7 +70,7 @@
+     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
+     @OrderBy("dateTime DESC")
+     @OnDelete(action = OnDeleteAction.CASCADE) //https://stackoverflow.com/a/44988100/548473
+-    @JsonIgnore
++//    @JsonIgnore
+     private List<Meal> meals;
+ 
+     public User() {

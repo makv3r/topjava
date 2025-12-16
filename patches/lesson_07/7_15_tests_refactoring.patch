@@ -1,0 +1,384 @@
+Subject: [PATCH] 7_15_tests_refactoring
+---
+Index: src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java b/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(date 1732133122046)
+@@ -1,13 +1,10 @@
+ package ru.javawebinar.topjava.web.json;
+ 
+ import com.fasterxml.jackson.core.JsonProcessingException;
+-import com.fasterxml.jackson.core.type.TypeReference;
+ import com.fasterxml.jackson.databind.ObjectReader;
+ 
+ import java.io.IOException;
+ import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
+ 
+ import static ru.javawebinar.topjava.web.json.JacksonObjectMapper.getMapper;
+ 
+@@ -37,10 +34,4 @@
+             throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
+         }
+     }
+-
+-    public static <T> String writeIgnoreProps(T obj, String... ignoreProps) {
+-        Map<String, Object> map = getMapper().convertValue(obj, new TypeReference<>() {});
+-        map.keySet().removeAll(Set.of(ignoreProps));
+-        return writeValue(map);
+-    }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+new file mode 100644
+--- /dev/null	(date 1732133122066)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1732133122066)
+@@ -0,0 +1,48 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.service.UserService;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++import ru.javawebinar.topjava.web.json.JsonUtil;
++
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.web.user.ProfileRestController.REST_URL;
++
++class ProfileRestControllerTest extends AbstractControllerTest {
++
++    @Autowired
++    private UserService userService;
++
++    @Test
++    void get() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isOk())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_MATCHER.contentJson(user));
++    }
++
++    @Test
++    void delete() throws Exception {
++        perform(MockMvcRequestBuilders.delete(REST_URL))
++                .andExpect(status().isNoContent());
++        USER_MATCHER.assertMatch(userService.getAll(), admin, guest);
++    }
++
++    @Test
++    void update() throws Exception {
++        User updated = getUpdated();
++        perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updated)))
++                .andDo(print())
++                .andExpect(status().isNoContent());
++
++        USER_MATCHER.assertMatch(userService.get(USER_ID), updated);
++    }
++}
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/pom.xml	(date 1732133153600)
+@@ -37,8 +37,7 @@
+         <!--    Tests  -->
+         <junit.jupiter.version>5.11.3</junit.jupiter.version>
+         <assertj.version>3.26.3</assertj.version>
+-        <hamcrest.version>1.3</hamcrest.version>
+-        <jsonassert.version>1.5.3</jsonassert.version>
++        <hamcrest.version>3.0</hamcrest.version>
+     </properties>
+ 
+     <build>
+@@ -249,16 +248,10 @@
+         </dependency>
+         <dependency>
+             <groupId>org.hamcrest</groupId>
+-            <artifactId>hamcrest-all</artifactId>
++            <artifactId>hamcrest-core</artifactId>
+             <version>${hamcrest.version}</version>
+             <scope>test</scope>
+         </dependency>
+-        <dependency>
+-            <groupId>org.skyscreamer</groupId>
+-            <artifactId>jsonassert</artifactId>
+-            <version>${jsonassert.version}</version>
+-            <scope>test</scope>
+-        </dependency>
+ 
+         <dependency>
+             <groupId>org.springframework</groupId>
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1732133122076)
+@@ -1,13 +1,15 @@
+ package ru.javawebinar.topjava.web;
+ 
++import org.assertj.core.matcher.AssertionMatcher;
+ import org.junit.jupiter.api.Test;
+-import ru.javawebinar.topjava.UserTestData;
++import ru.javawebinar.topjava.model.User;
+ 
+-import static org.hamcrest.Matchers.*;
++import java.util.List;
++
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+-import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
++import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ class RootControllerTest extends AbstractControllerTest {
+ 
+@@ -18,12 +20,13 @@
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("users"))
+                 .andExpect(forwardedUrl("/WEB-INF/jsp/users.jsp"))
+-                .andExpect(model().attribute("users", hasSize(3)))
+-                .andExpect(model().attribute("users", hasItem(
+-                        allOf(
+-                                hasProperty("id", is(START_SEQ)),
+-                                hasProperty("name", is(UserTestData.user.getName()))
+-                        )
+-                )));
++                .andExpect(model().attribute("users",
++                        new AssertionMatcher<List<User>>() {
++                            @Override
++                            public void assertion(List<User> actual) throws AssertionError {
++                                USER_MATCHER.assertMatch(actual, admin, guest, user);
++                            }
++                        }
++                ));
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/UserTestData.java b/src/test/java/ru/javawebinar/topjava/UserTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/UserTestData.java	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1732133122104)
+@@ -9,7 +9,7 @@
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class UserTestData {
+-    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator("registered", "meals");
++    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator(User.class, "registered", "meals");
+ 
+     public static final int USER_ID = START_SEQ;
+     public static final int ADMIN_ID = START_SEQ + 1;
+Index: src/test/java/ru/javawebinar/topjava/MealTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/MealTestData.java b/src/test/java/ru/javawebinar/topjava/MealTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/MealTestData.java	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/src/test/java/ru/javawebinar/topjava/MealTestData.java	(date 1732133122094)
+@@ -10,7 +10,7 @@
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class MealTestData {
+-    public static final MatcherFactory.Matcher<Meal> MEAL_MATCHER = MatcherFactory.usingIgnoringFieldsComparator("user");
++    public static final MatcherFactory.Matcher<Meal> MEAL_MATCHER = MatcherFactory.usingIgnoringFieldsComparator(Meal.class, "user");
+ 
+     public static final int NOT_FOUND = 10;
+     public static final int MEAL1_ID = START_SEQ + 3;
+Index: src/test/java/ru/javawebinar/topjava/MatcherFactory.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/MatcherFactory.java b/src/test/java/ru/javawebinar/topjava/MatcherFactory.java
+--- a/src/test/java/ru/javawebinar/topjava/MatcherFactory.java	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/src/test/java/ru/javawebinar/topjava/MatcherFactory.java	(date 1732133122084)
+@@ -1,5 +1,11 @@
+ package ru.javawebinar.topjava;
+ 
++import org.springframework.test.web.servlet.MvcResult;
++import org.springframework.test.web.servlet.ResultActions;
++import org.springframework.test.web.servlet.ResultMatcher;
++import ru.javawebinar.topjava.web.json.JsonUtil;
++
++import java.io.UnsupportedEncodingException;
+ import java.util.List;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+@@ -8,16 +14,19 @@
+  * Factory for creating test matchers.
+  * <p>
+  * Comparing actual and expected objects via AssertJ
++ * Support converting json MvcResult to objects for comparation.
+  */
+ public class MatcherFactory {
+-    public static <T> Matcher<T> usingIgnoringFieldsComparator(String... fieldsToIgnore) {
+-        return new Matcher<>(fieldsToIgnore);
++    public static <T> Matcher<T> usingIgnoringFieldsComparator(Class<T> clazz, String... fieldsToIgnore) {
++        return new Matcher<>(clazz, fieldsToIgnore);
+     }
+ 
+     public static class Matcher<T> {
++        private final Class<T> clazz;
+         private final String[] fieldsToIgnore;
+ 
+-        private Matcher(String... fieldsToIgnore) {
++        private Matcher(Class<T> clazz, String... fieldsToIgnore) {
++            this.clazz = clazz;
+             this.fieldsToIgnore = fieldsToIgnore;
+         }
+ 
+@@ -33,5 +42,26 @@
+         public void assertMatch(Iterable<T> actual, Iterable<T> expected) {
+             assertThat(actual).usingRecursiveFieldByFieldElementComparatorIgnoringFields(fieldsToIgnore).isEqualTo(expected);
+         }
++
++        public ResultMatcher contentJson(T expected) {
++            return result -> assertMatch(JsonUtil.readValue(getContent(result), clazz), expected);
++        }
++
++        @SafeVarargs
++        public final ResultMatcher contentJson(T... expected) {
++            return contentJson(List.of(expected));
++        }
++
++        public ResultMatcher contentJson(Iterable<T> expected) {
++            return result -> assertMatch(JsonUtil.readValues(getContent(result), clazz), expected);
++        }
++
++        public T readFromJson(ResultActions action) throws UnsupportedEncodingException {
++            return JsonUtil.readValue(getContent(action.andReturn()), clazz);
++        }
++
++        private static String getContent(MvcResult result) throws UnsupportedEncodingException {
++            return result.getResponse().getContentAsString();
++        }
+     }
+ }
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision a853fe8d8c98c349d8d175e10f15c848bde7d283)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1732133122058)
+@@ -1,21 +1,29 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+ import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.service.UserService;
++import ru.javawebinar.topjava.util.exception.NotFoundException;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
++import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+-import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
+-import static ru.javawebinar.topjava.UserTestData.admin;
+-import static ru.javawebinar.topjava.web.json.JsonUtil.writeIgnoreProps;
++import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ class AdminRestControllerTest extends AbstractControllerTest {
+ 
+     private static final String REST_URL = AdminRestController.REST_URL + '/';
+ 
++    @Autowired
++    private UserService userService;
++
+     @Test
+     void get() throws Exception {
+         perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID))
+@@ -23,6 +31,56 @@
+                 .andDo(print())
+                 // https://jira.spring.io/browse/SPR-14472
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+-                .andExpect(content().json(writeIgnoreProps(admin, "registered")));
++                .andExpect(USER_MATCHER.contentJson(admin));
++    }
++
++    @Test
++    void getByEmail() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL + "by-email?email=" + user.getEmail()))
++                .andExpect(status().isOk())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_MATCHER.contentJson(user));
++    }
++
++    @Test
++    void delete() throws Exception {
++        perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID))
++                .andDo(print())
++                .andExpect(status().isNoContent());
++        assertThrows(NotFoundException.class, () -> userService.get(USER_ID));
++    }
++
++    @Test
++    void update() throws Exception {
++        User updated = getUpdated();
++        perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updated)))
++                .andExpect(status().isNoContent());
++
++        USER_MATCHER.assertMatch(userService.get(USER_ID), updated);
++    }
++
++    @Test
++    void createWithLocation() throws Exception {
++        User newUser = getNew();
++        ResultActions action = perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(newUser)))
++                .andExpect(status().isCreated());
++
++        User created = USER_MATCHER.readFromJson(action);
++        int newId = created.id();
++        newUser.setId(newId);
++        USER_MATCHER.assertMatch(created, newUser);
++        USER_MATCHER.assertMatch(userService.get(newId), newUser);
++    }
++
++    @Test
++    void getAll() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isOk())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_MATCHER.contentJson(admin, guest, user));
+     }
+ }
+\ No newline at end of file

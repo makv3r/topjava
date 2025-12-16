@@ -1,0 +1,207 @@
+Subject: [PATCH] 3_12_db_implementation
+---
+Index: src/main/resources/db/populateDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/populateDB.sql b/src/main/resources/db/populateDB.sql
+new file mode 100644
+--- /dev/null	(date 1676489673720)
++++ b/src/main/resources/db/populateDB.sql	(date 1676489673720)
+@@ -0,0 +1,12 @@
++DELETE FROM user_role;
++DELETE FROM users;
++ALTER SEQUENCE global_seq RESTART WITH 100000;
++
++INSERT INTO users (name, email, password)
++VALUES ('User', 'user@yandex.ru', 'password'),
++       ('Admin', 'admin@gmail.com', 'admin'),
++       ('Guest', 'guest@gmail.com', 'guest');
++
++INSERT INTO user_role (role, user_id)
++VALUES ('USER', 100000),
++       ('ADMIN', 100001);
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-db.xml b/src/main/resources/spring/spring-db.xml
+new file mode 100644
+--- /dev/null	(date 1676489549135)
++++ b/src/main/resources/spring/spring-db.xml	(date 1676489549135)
+@@ -0,0 +1,25 @@
++<beans xmlns="http://www.springframework.org/schema/beans"
++       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++       xmlns:context="http://www.springframework.org/schema/context"
++       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
++       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
++
++    <context:property-placeholder location="classpath:db/postgres.properties" system-properties-mode="OVERRIDE"/>
++
++    <!--no pooling-->
++    <bean id="dataSource"
++          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
++        <property name="driverClassName" value="org.postgresql.Driver"/>
++        <property name="url" value="${database.url}"/>
++        <property name="username" value="${database.username}"/>
++        <property name="password" value="${database.password}"/>
++    </bean>
++
++    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
++        <constructor-arg ref="dataSource"/>
++    </bean>
++
++    <bean id="namedJdbcTemplate" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">
++        <constructor-arg ref="jdbcTemplate"/>
++    </bean>
++</beans>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+new file mode 100644
+--- /dev/null	(date 1676489549109)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(date 1676489549109)
+@@ -0,0 +1,81 @@
++package ru.javawebinar.topjava.repository.jdbc;
++
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.dao.support.DataAccessUtils;
++import org.springframework.jdbc.core.BeanPropertyRowMapper;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
++import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
++import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
++import org.springframework.stereotype.Repository;
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.repository.UserRepository;
++
++import java.util.List;
++
++@Repository
++public class JdbcUserRepository implements UserRepository {
++
++    private static final BeanPropertyRowMapper<User> ROW_MAPPER = BeanPropertyRowMapper.newInstance(User.class);
++
++    private final JdbcTemplate jdbcTemplate;
++
++    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
++
++    private final SimpleJdbcInsert insertUser;
++
++    @Autowired
++    public JdbcUserRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
++        this.insertUser = new SimpleJdbcInsert(jdbcTemplate)
++                .withTableName("users")
++                .usingGeneratedKeyColumns("id");
++
++        this.jdbcTemplate = jdbcTemplate;
++        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
++    }
++
++    @Override
++    public User save(User user) {
++        MapSqlParameterSource map = new MapSqlParameterSource()
++                .addValue("id", user.getId())
++                .addValue("name", user.getName())
++                .addValue("email", user.getEmail())
++                .addValue("password", user.getPassword())
++                .addValue("registered", user.getRegistered())
++                .addValue("enabled", user.isEnabled())
++                .addValue("caloriesPerDay", user.getCaloriesPerDay());
++
++        if (user.isNew()) {
++            Number newKey = insertUser.executeAndReturnKey(map);
++            user.setId(newKey.intValue());
++        } else if (namedParameterJdbcTemplate.update(
++                "UPDATE users SET name=:name, email=:email, password=:password, " +
++                        "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", map) == 0) {
++            return null;
++        }
++        return user;
++    }
++
++    @Override
++    public boolean delete(int id) {
++        return jdbcTemplate.update("DELETE FROM users WHERE id=?", id) != 0;
++    }
++
++    @Override
++    public User get(int id) {
++        List<User> users = jdbcTemplate.query("SELECT * FROM users WHERE id=?", ROW_MAPPER, id);
++        return DataAccessUtils.singleResult(users);
++    }
++
++    @Override
++    public User getByEmail(String email) {
++//        return jdbcTemplate.queryForObject("SELECT * FROM users WHERE email=?", ROW_MAPPER, email);
++        List<User> users = jdbcTemplate.query("SELECT * FROM users WHERE email=?", ROW_MAPPER, email);
++        return DataAccessUtils.singleResult(users);
++    }
++
++    @Override
++    public List<User> getAll() {
++        return jdbcTemplate.query("SELECT * FROM users ORDER BY name, email", ROW_MAPPER);
++    }
++}
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision ddf9c3db6baa0491d3f3992ef61413ecd4c9dd10)
++++ b/pom.xml	(date 1676489549142)
+@@ -83,6 +83,11 @@
+             <artifactId>spring-context</artifactId>
+             <version>${spring.version}</version>
+         </dependency>
++        <dependency>
++            <groupId>org.springframework</groupId>
++            <artifactId>spring-jdbc</artifactId>
++            <version>${spring.version}</version>
++        </dependency>
+ 
+         <!--DataBase-->
+         <dependency>
+Index: src/main/resources/db/initDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/initDB.sql b/src/main/resources/db/initDB.sql
+new file mode 100644
+--- /dev/null	(date 1676489673725)
++++ b/src/main/resources/db/initDB.sql	(date 1676489673725)
+@@ -0,0 +1,25 @@
++DROP TABLE IF EXISTS user_role;
++DROP TABLE IF EXISTS users;
++DROP SEQUENCE IF EXISTS global_seq;
++
++CREATE SEQUENCE global_seq START WITH 100000;
++
++CREATE TABLE users
++(
++    id               INTEGER PRIMARY KEY DEFAULT nextval('global_seq'),
++    name             VARCHAR                           NOT NULL,
++    email            VARCHAR                           NOT NULL,
++    password         VARCHAR                           NOT NULL,
++    registered       TIMESTAMP           DEFAULT now() NOT NULL,
++    enabled          BOOL                DEFAULT TRUE  NOT NULL,
++    calories_per_day INTEGER             DEFAULT 2000  NOT NULL
++);
++CREATE UNIQUE INDEX users_unique_email_idx ON users (email);
++
++CREATE TABLE user_role
++(
++    user_id INTEGER NOT NULL,
++    role    VARCHAR NOT NULL,
++    CONSTRAINT user_roles_idx UNIQUE (user_id, role),
++    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
++);
+\ No newline at end of file

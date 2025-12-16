@@ -1,0 +1,257 @@
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/config/messages/app.properties	(date 1618667203066)
+@@ -43,4 +43,6 @@
+ common.appError=Application error
+ common.confirm=Are you sure?
+ common.save=Save
+-common.cancel=Cancel
+\ No newline at end of file
++common.cancel=Cancel
++
++exception.user.duplicateEmail=User with this email already exists
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1618667334703)
+@@ -1,12 +1,14 @@
+ package ru.javawebinar.topjava.util;
+ 
+-
++import org.slf4j.Logger;
+ import org.springframework.core.NestedExceptionUtils;
+ import org.springframework.lang.NonNull;
+ import ru.javawebinar.topjava.HasId;
++import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
++import javax.servlet.http.HttpServletRequest;
+ import javax.validation.*;
+ import java.util.Set;
+ 
+@@ -73,4 +75,18 @@
+         Throwable rootCause = NestedExceptionUtils.getRootCause(t);
+         return rootCause != null ? rootCause : t;
+     }
++
++    public static String getMessage(Throwable e) {
++        return e.getLocalizedMessage() != null ? e.getLocalizedMessage() : e.getClass().getName();
++    }
++
++    public static Throwable logAndGetRootCause(Logger log, HttpServletRequest req, Exception e, boolean logStackTrace, ErrorType errorType) {
++        Throwable rootCause = ValidationUtil.getRootCause(e);
++        if (logStackTrace) {
++            log.error(errorType + " at request " + req.getRequestURL(), rootCause);
++        } else {
++            log.warn("{} at request  {}: {}", errorType, req.getRequestURL(), rootCause.toString());
++        }
++        return rootCause;
++    }
+ }
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/config/messages/app_ru.properties	(date 1618667203072)
+@@ -43,4 +43,6 @@
+ common.appError=Ошибка приложения
+ common.confirm=Вы уверены?
+ common.save=Сохранить
+-common.cancel=Отменить
+\ No newline at end of file
++common.cancel=Отменить
++
++exception.user.duplicateEmail=Пользователь с такой почтой уже есть в приложении
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1618667222261)
+@@ -16,6 +16,8 @@
+ public abstract class AbstractUserController {
+     protected final Logger log = LoggerFactory.getLogger(getClass());
+ 
++    public static final String EXCEPTION_DUPLICATE_EMAIL = "exception.user.duplicateEmail";
++
+     @Autowired
+     private UserService service;
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1618667222268)
+@@ -1,10 +1,15 @@
+ package ru.javawebinar.topjava.web.user;
+ 
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.context.MessageSource;
++import org.springframework.context.i18n.LocaleContextHolder;
++import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+ 
+ import javax.validation.Valid;
+ import java.util.List;
+@@ -13,6 +18,9 @@
+ @RequestMapping(value = "/admin/users", produces = MediaType.APPLICATION_JSON_VALUE)
+ public class AdminUIController extends AbstractUserController {
+ 
++    @Autowired
++    private MessageSource messageSource;
++
+     @Override
+     @GetMapping
+     public List<User> getAll() {
+@@ -35,10 +43,14 @@
+     @PostMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+     public void createOrUpdate(@Valid UserTo userTo) {
+-        if (userTo.isNew()) {
+-            super.create(userTo);
+-        } else {
+-            super.update(userTo, userTo.id());
++        try {
++            if (userTo.isNew()) {
++                super.create(userTo);
++            } else {
++                super.update(userTo, userTo.id());
++            }
++        } catch (DataIntegrityViolationException e) {
++            throw new IllegalRequestDataException(messageSource.getMessage(EXCEPTION_DUPLICATE_EMAIL, null, LocaleContextHolder.getLocale()));
+         }
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1618667222281)
+@@ -64,14 +64,9 @@
+     }
+ 
+     //    https://stackoverflow.com/questions/538870/should-private-helper-methods-be-static-if-they-can-be-static
+-    private static ErrorInfo logAndGetErrorInfo(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType, String... details) {
+-        Throwable rootCause = ValidationUtil.getRootCause(e);
+-        if (logException) {
+-            log.error(errorType + " at request " + req.getRequestURL(), rootCause);
+-        } else {
+-            log.warn("{} at request  {}: {}", errorType, req.getRequestURL(), rootCause.toString());
+-        }
++    private static ErrorInfo logAndGetErrorInfo(HttpServletRequest req, Exception e, boolean logStackTrace, ErrorType errorType, String... details) {
++        Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, logStackTrace, errorType);
+         return new ErrorInfo(req.getRequestURL(), errorType,
+-                details.length != 0 ? details : new String[]{rootCause.toString()});
++                details.length != 0 ? details : new String[]{ValidationUtil.getMessage(rootCause)});
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(date 1618667222286)
+@@ -8,6 +8,7 @@
+ import org.springframework.web.servlet.ModelAndView;
+ import ru.javawebinar.topjava.AuthorizedUser;
+ import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.exception.ErrorType;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ import java.util.Map;
+@@ -19,11 +20,11 @@
+     @ExceptionHandler(Exception.class)
+     public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e) throws Exception {
+         log.error("Exception at request " + req.getRequestURL(), e);
+-        Throwable rootCause = ValidationUtil.getRootCause(e);
++        Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, true, ErrorType.APP_ERROR);
+ 
+         HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+         ModelAndView mav = new ModelAndView("exception",
+-                Map.of("exception", rootCause, "message", rootCause.toString(), "status", httpStatus));
++                Map.of("exception", rootCause, "message", ValidationUtil.getMessage(rootCause), "status", httpStatus));
+         mav.setStatus(httpStatus);
+ 
+         // Interceptor is not invoked, put userTo
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision e41ed487e7ce29d242a63582a82cfd3dfa78364f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1618667222276)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.web.user;
+ 
++import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.ModelMap;
+ import org.springframework.validation.BindingResult;
+@@ -25,11 +26,15 @@
+     public String updateProfile(@Valid UserTo userTo, BindingResult result, SessionStatus status) {
+         if (result.hasErrors()) {
+             return "profile";
+-        } else {
++        }
++        try {
+             super.update(userTo, SecurityUtil.authUserId());
+             SecurityUtil.get().update(userTo);
+             status.setComplete();
+             return "redirect:/meals";
++        } catch (DataIntegrityViolationException ex) {
++            result.rejectValue("email", EXCEPTION_DUPLICATE_EMAIL);
++            return "profile";
+         }
+     }
+ 
+@@ -45,10 +50,15 @@
+         if (result.hasErrors()) {
+             model.addAttribute("register", true);
+             return "profile";
+-        } else {
++        }
++        try {
+             super.create(userTo);
+             status.setComplete();
+             return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
++        } catch (DataIntegrityViolationException ex) {
++            result.rejectValue("email", EXCEPTION_DUPLICATE_EMAIL);
++            model.addAttribute("register", true);
++            return "profile";
+         }
+     }
+ }
+\ No newline at end of file

@@ -1,0 +1,147 @@
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(revision 52b113d48039467267f1a91d4c2e7d00ca10ee78)
++++ b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1608038208089)
+@@ -34,7 +34,7 @@
+ @Transactional
+ @ActiveProfiles(resolver = AllActiveProfileResolver.class)
+ public abstract class AbstractControllerTest {
+-
++    private static final Locale RU_LOCALE = new Locale("ru");
+     private static final CharacterEncodingFilter CHARACTER_ENCODING_FILTER = new CharacterEncodingFilter();
+ 
+     @Autowired
+@@ -71,7 +71,7 @@
+     }
+ 
+     private String getMessage(String code) {
+-        return messageSourceAccessor.getMessage(code, Locale.ENGLISH);
++        return messageSourceAccessor.getMessage(code, RU_LOCALE);
+     }
+ 
+     public ResultMatcher errorType(ErrorType type) {
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.meals.js b/src/main/webapp/resources/js/topjava.meals.js
+--- a/src/main/webapp/resources/js/topjava.meals.js	(revision 52b113d48039467267f1a91d4c2e7d00ca10ee78)
++++ b/src/main/webapp/resources/js/topjava.meals.js	(date 1608038208076)
+@@ -67,6 +67,8 @@
+         },
+     });
+ 
++    $.datetimepicker.setLocale(localeCode);
++
+ //  http://xdsoft.net/jqplugins/datetimepicker/
+     var startDate = $('#startDate');
+     var endDate = $('#endDate');
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision 52b113d48039467267f1a91d4c2e7d00ca10ee78)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1608038208070)
+@@ -74,7 +74,15 @@
+         <constructor-arg ref="messageSource"/>
+     </bean>
+ 
++    <bean id="localeResolver" class="org.springframework.web.servlet.i18n.CookieLocaleResolver">
++        <property name="defaultLocale" value="ru"/>
++    </bean>
++
+     <mvc:interceptors>
+         <bean class="ru.javawebinar.topjava.web.interceptor.ModelInterceptor"/>
++
++        <bean id="localeChangeInterceptor" class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor">
++            <property name="paramName" value="lang"/>
++        </bean>
+     </mvc:interceptors>
+ </beans>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp b/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(revision 52b113d48039467267f1a91d4c2e7d00ca10ee78)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(date 1608038766002)
+@@ -3,28 +3,49 @@
+ <%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
+ <%@taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+ 
+-<nav class="navbar navbar-dark bg-dark py-0">
++<nav class="navbar navbar-expand-md navbar-dark bg-dark py-0">
+     <div class="container">
+         <a href="meals" class="navbar-brand"><img src="resources/images/icon-meal.png"> <spring:message code="app.title"/></a>
+-        <sec:authorize access="isAuthenticated()">
+-            <form:form class="form-inline my-2" action="logout" method="post">
+-                <sec:authorize access="hasRole('ADMIN')">
+-                    <a class="btn btn-info mr-1" href="users"><spring:message code="user.title"/></a>
+-                </sec:authorize>
+-                <a class="btn btn-info mr-1" href="profile">${userTo.name} <spring:message code="app.profile"/></a>
+-                <button class="btn btn-primary my-1" type="submit">
+-                    <span class="fa fa-sign-out"></span>
+-                </button>
+-            </form:form>
+-        </sec:authorize>
+-        <sec:authorize access="isAnonymous()">
+-            <form:form class="form-inline my-2" id="login_form" action="spring_security_check" method="post">
+-                <input class="form-control mr-1" type="text" placeholder="Email" name="username">
+-                <input class="form-control mr-1" type="password" placeholder="Password" name="password">
+-                <button class="btn btn-success" type="submit">
+-                    <span class="fa fa-sign-in"></span>
+-                </button>
+-            </form:form>
+-        </sec:authorize>
++        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
++                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
++            <span class="navbar-toggler-icon"></span>
++        </button>
++
++        <div class="collapse navbar-collapse" id="navbarNav">
++            <ul class="navbar-nav ml-auto">
++                <li class="nav-item">
++                    <sec:authorize access="isAuthenticated()">
++                        <form:form class="form-inline my-2" action="logout" method="post">
++                            <sec:authorize access="hasRole('ADMIN')">
++                                <a class="btn btn-info mr-1" href="users"><spring:message code="user.title"/></a>
++                            </sec:authorize>
++                            <a class="btn btn-info mr-1" href="profile">${userTo.name} <spring:message code="app.profile"/></a>
++                            <button class="btn btn-primary my-1" type="submit">
++                                <span class="fa fa-sign-out"></span>
++                            </button>
++                        </form:form>
++                    </sec:authorize>
++                    <sec:authorize access="isAnonymous()">
++                        <form:form class="form-inline my-2" id="login_form" action="spring_security_check" method="post">
++                            <input class="form-control mr-1" type="text" placeholder="Email" name="username">
++                            <input class="form-control mr-1" type="password" placeholder="Password" name="password">
++                            <button class="btn btn-success" type="submit">
++                                <span class="fa fa-sign-in"></span>
++                            </button>
++                        </form:form>
++                    </sec:authorize>
++                </li>
++                <li class="nav-item dropdown">
++                    <a class="dropdown-toggle nav-link my-1 ml-2" data-toggle="dropdown">${pageContext.response.locale}</a>
++                    <div class="dropdown-menu">
++                        <a class="dropdown-item" href="${requestScope['javax.servlet.forward.request_uri']}?lang=en">English</a>
++                        <a class="dropdown-item" href="${requestScope['javax.servlet.forward.request_uri']}?lang=ru">Русский</a>
++                    </div>
++                </li>
++            </ul>
++        </div>
+     </div>
+ </nav>
++<script type="text/javascript">
++    var localeCode = "${pageContext.response.locale}";
++</script>

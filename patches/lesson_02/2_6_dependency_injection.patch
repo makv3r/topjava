@@ -1,0 +1,65 @@
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision c83d53522a45d4a07c5f3c2c663f8ffe2d83067e)
++++ src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1602103194560)
+@@ -10,7 +10,11 @@
+ 
+ public class UserService {
+ 
+-    private UserRepository repository;
++    private final UserRepository repository;
++
++    public UserService(UserRepository repository) {
++        this.repository = repository;
++    }
+ 
+     public User create(User user) {
+         return repository.save(user);
+Index: src/main/resources/spring/spring-app.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-app.xml	(revision c83d53522a45d4a07c5f3c2c663f8ffe2d83067e)
++++ src/main/resources/spring/spring-app.xml	(date 1602103115192)
+@@ -4,4 +4,7 @@
+ 
+     <bean class="ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepository" id="inmemoryUserRepository"/>
+ 
++    <bean class="ru.javawebinar.topjava.service.UserService">
++        <constructor-arg name="repository" ref="inmemoryUserRepository"/>
++    </bean>
+ </beans>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/SpringMain.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/SpringMain.java	(revision c83d53522a45d4a07c5f3c2c663f8ffe2d83067e)
++++ src/main/java/ru/javawebinar/topjava/SpringMain.java	(date 1602103115188)
+@@ -2,7 +2,10 @@
+ 
+ import org.springframework.context.ConfigurableApplicationContext;
+ import org.springframework.context.support.ClassPathXmlApplicationContext;
++import ru.javawebinar.topjava.model.Role;
++import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
++import ru.javawebinar.topjava.service.UserService;
+ 
+ import java.util.Arrays;
+ 
+@@ -14,6 +17,10 @@
+ //        UserRepository userRepository = (UserRepository) appCtx.getBean("inmemoryUserRepository");
+         UserRepository userRepository = appCtx.getBean(UserRepository.class);
+         userRepository.getAll();
++
++        UserService userService = appCtx.getBean(UserService.class);
++        userService.create(new User(null, "userName", "email@mail.ru", "password", Role.ADMIN));
++
+         appCtx.close();
+     }
+ }

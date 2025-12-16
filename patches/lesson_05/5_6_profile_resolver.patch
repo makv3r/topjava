@@ -1,0 +1,129 @@
+Index: src/main/java/ru/javawebinar/topjava/Profiles.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/Profiles.java b/src/main/java/ru/javawebinar/topjava/Profiles.java
+--- a/src/main/java/ru/javawebinar/topjava/Profiles.java	(revision c76f60b86603b6535ccbb537209bf8c995a49b65)
++++ b/src/main/java/ru/javawebinar/topjava/Profiles.java	(date 1677690128053)
+@@ -1,5 +1,7 @@
+ package ru.javawebinar.topjava;
+ 
++import org.springframework.util.ClassUtils;
++
+ public class Profiles {
+     public static final String
+             JDBC = "jdbc",
+@@ -11,5 +13,14 @@
+             POSTGRES_DB = "postgres",
+             HSQL_DB = "hsqldb";
+ 
+-    public static final String ACTIVE_DB = POSTGRES_DB;
++    //  Get DB profile depending of DB driver in classpath
++    public static String getActiveDbProfile() {
++        if (ClassUtils.isPresent("org.postgresql.Driver", null)) {
++            return POSTGRES_DB;
++        } else if (ClassUtils.isPresent("org.hsqldb.jdbcDriver", null)) {
++            return HSQL_DB;
++        } else {
++            throw new IllegalStateException("Could not find DB driver");
++        }
++    }
+ }
+Index: src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(revision c76f60b86603b6535ccbb537209bf8c995a49b65)
++++ b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(date 1677690128086)
+@@ -9,7 +9,7 @@
+ import org.springframework.test.context.jdbc.Sql;
+ import org.springframework.test.context.jdbc.SqlConfig;
+ import org.springframework.test.context.junit4.SpringRunner;
+-import ru.javawebinar.topjava.Profiles;
++import ru.javawebinar.topjava.ActiveDbProfileResolver;
+ import ru.javawebinar.topjava.UserTestData;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+@@ -26,7 +26,7 @@
+ })
+ @RunWith(SpringRunner.class)
+ @Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
+-@ActiveProfiles(Profiles.ACTIVE_DB)
++@ActiveProfiles(resolver = ActiveDbProfileResolver.class)
+ public class UserServiceTest {
+ 
+     @Autowired
+Index: src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(revision c76f60b86603b6535ccbb537209bf8c995a49b65)
++++ b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(date 1677690128076)
+@@ -9,13 +9,13 @@
+ import org.junit.runner.RunWith;
+ import org.slf4j.Logger;
+ import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.dao.DataAccessException;
++import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.test.context.ContextConfiguration;
+ import org.springframework.test.context.jdbc.Sql;
+ import org.springframework.test.context.jdbc.SqlConfig;
+ import org.springframework.test.context.junit4.SpringRunner;
+-import ru.javawebinar.topjava.Profiles;
++import ru.javawebinar.topjava.ActiveDbProfileResolver;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+@@ -35,7 +35,7 @@
+ })
+ @RunWith(SpringRunner.class)
+ @Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
+-@ActiveProfiles(Profiles.ACTIVE_DB)
++@ActiveProfiles(resolver = ActiveDbProfileResolver.class)
+ public class MealServiceTest {
+     private static final Logger log = getLogger("result");
+ 
+@@ -121,7 +121,7 @@
+ 
+     @Test
+     public void updateNotOwn() {
+-        NotFoundException exception = assertThrows(NotFoundException.class, () -> service.update(meal1, ADMIN_ID));
++        NotFoundException exception = assertThrows(NotFoundException.class, () -> service.update(getUpdated(), ADMIN_ID));
+         Assert.assertEquals("Not found entity with id=" + MEAL1_ID, exception.getMessage());
+         MEAL_MATCHER.assertMatch(service.get(MEAL1_ID, USER_ID), meal1);
+     }
+Index: src/test/java/ru/javawebinar/topjava/ActiveDbProfileResolver.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/ActiveDbProfileResolver.java b/src/test/java/ru/javawebinar/topjava/ActiveDbProfileResolver.java
+new file mode 100644
+--- /dev/null	(date 1677691043145)
++++ b/src/test/java/ru/javawebinar/topjava/ActiveDbProfileResolver.java	(date 1677691043145)
+@@ -0,0 +1,19 @@
++package ru.javawebinar.topjava;
++
++import org.springframework.lang.NonNull;
++import org.springframework.test.context.support.DefaultActiveProfilesResolver;
++
++import java.util.Arrays;
++
++//http://stackoverflow.com/questions/23871255/spring-profiles-simple-example-of-activeprofilesresolver
++public class ActiveDbProfileResolver extends DefaultActiveProfilesResolver {
++    @Override
++    public @NonNull
++    String[] resolve(@NonNull Class<?> aClass) {
++        // https://stackoverflow.com/a/52438829/548473
++        String[] activeProfiles = super.resolve(aClass);
++        String[] activeProfilesWithDb = Arrays.copyOf(activeProfiles, activeProfiles.length + 1);
++        activeProfilesWithDb[activeProfiles.length] = Profiles.getActiveDbProfile();
++        return activeProfilesWithDb;
++    }
++}

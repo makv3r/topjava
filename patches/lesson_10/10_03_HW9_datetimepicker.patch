@@ -1,0 +1,216 @@
+Subject: [PATCH] 10_03_HW9_datetimepicker
+---
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 0a139c77a3c2dda90aa10e38b00cdaa3bfbf4bf7)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision f955a3caa57dd559659bb31fba0522c136436ed9)
+@@ -5,6 +5,7 @@
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.format.annotation.DateTimeFormat;
++import ru.javawebinar.topjava.util.DateTimeUtil;
+ 
+ import javax.persistence.*;
+ import javax.validation.constraints.NotBlank;
+@@ -33,7 +34,7 @@
+ 
+     @Column(name = "date_time", nullable = false)
+     @NotNull
+-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
++    @DateTimeFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
+     private LocalDateTime dateTime;
+ 
+     @Column(name = "description", nullable = false)
+Index: src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(revision 0a139c77a3c2dda90aa10e38b00cdaa3bfbf4bf7)
++++ b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(revision f955a3caa57dd559659bb31fba0522c136436ed9)
+@@ -9,7 +9,8 @@
+ import java.time.format.DateTimeFormatter;
+ 
+ public class DateTimeUtil {
+-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
++    public static final String DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm";
++    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern(DATE_TIME_PATTERN);
+ 
+     // DB doesn't support LocalDate.MIN/MAX
+     private static final LocalDateTime MIN_DATE = LocalDateTime.of(1, 1, 1, 0, 0);
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision 0a139c77a3c2dda90aa10e38b00cdaa3bfbf4bf7)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision f955a3caa57dd559659bb31fba0522c136436ed9)
+@@ -12,6 +12,7 @@
+     <link rel="stylesheet" href="webjars/noty/3.1.4/demo/font-awesome/css/font-awesome.min.css">
+     <link rel="stylesheet" href="webjars/datatables/1.13.5/css/dataTables.bootstrap4.min.css">
+     <link rel="stylesheet" href="webjars/noty/3.1.4/lib/noty.css"/>
++    <link rel="stylesheet" href="webjars/datetimepicker/2.5.20-1/jquery.datetimepicker.css">
+     <link rel="shortcut icon" href="resources/images/icon-meal.png">
+ 
+     <%--http://stackoverflow.com/a/24070373/548473--%>
+@@ -20,4 +21,5 @@
+     <script src="webjars/datatables/1.13.5/js/jquery.dataTables.min.js" defer></script>
+     <script src="webjars/datatables/1.13.5/js/dataTables.bootstrap4.min.js" defer></script>
+     <script src="webjars/noty/3.1.4/lib/noty.min.js" defer></script>
++    <script src="webjars/datetimepicker/2.5.20-1/build/jquery.datetimepicker.full.min.js" defer></script>
+ </head>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/meals.jsp b/src/main/webapp/WEB-INF/jsp/meals.jsp
+--- a/src/main/webapp/WEB-INF/jsp/meals.jsp	(revision 0a139c77a3c2dda90aa10e38b00cdaa3bfbf4bf7)
++++ b/src/main/webapp/WEB-INF/jsp/meals.jsp	(revision f955a3caa57dd559659bb31fba0522c136436ed9)
+@@ -17,21 +17,21 @@
+             <div class="card-body pb-0">
+                 <form id="filter">
+                     <div class="row">
+-                        <div class="col-3">
++                        <div class="col-2">
+                             <label for="startDate"><spring:message code="meal.startDate"/></label>
+-                            <input class="form-control" type="date" name="startDate" id="startDate">
++                            <input class="form-control" name="startDate" id="startDate" autocomplete="off">
+                         </div>
+-                        <div class="col-3">
++                        <div class="col-2">
+                             <label for="endDate"><spring:message code="meal.endDate"/></label>
+-                            <input class="form-control" type="date" name="endDate" id="endDate">
++                            <input class="form-control" name="endDate" id="endDate" autocomplete="off">
+                         </div>
+-                        <div class="offset-2 col-2">
++                        <div class="offset-2 col-3">
+                             <label for="startTime"><spring:message code="meal.startTime"/></label>
+-                            <input class="form-control" type="time" name="startTime" id="startTime">
++                            <input class="form-control" name="startTime" id="startTime" autocomplete="off">
+                         </div>
+-                        <div class="col-2">
++                        <div class="col-3">
+                             <label for="endTime"><spring:message code="meal.endTime"/></label>
+-                            <input class="form-control" type="time" name="endTime" id="endTime">
++                            <input class="form-control" name="endTime" id="endTime" autocomplete="off">
+                         </div>
+                     </div>
+                 </form>
+@@ -79,7 +79,7 @@
+ 
+                     <div class="form-group">
+                         <label for="dateTime" class="col-form-label"><spring:message code="meal.dateTime"/></label>
+-                        <input type="datetime-local" class="form-control" id="dateTime" name="dateTime"
++                        <input class="form-control" id="dateTime" name="dateTime" autocomplete="off"
+                                placeholder="<spring:message code="meal.dateTime"/>">
+                     </div>
+ 
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision 0a139c77a3c2dda90aa10e38b00cdaa3bfbf4bf7)
++++ b/src/main/webapp/resources/js/topjava.common.js	(revision f955a3caa57dd559659bb31fba0522c136436ed9)
+@@ -33,12 +33,18 @@
+     $("#modalTitle").html(i18n["editTitle"]);
+     $.get(ctx.ajaxUrl + id, function (data) {
+         $.each(data, function (key, value) {
+-            form.find(`input[name='${key}']`).val(value);
++            form.find("input[name='" + key + "']").val(
++                key === "dateTime" ? formatDate(value) : value
++            );
+         });
+         $('#editRow').modal();
+     });
+ }
+ 
++function formatDate(date) {
++    return date.replace('T', ' ').substr(0, 16);
++}
++
+ function deleteRow(id) {
+     if (confirm(i18n['common.confirm'])) {
+         $.ajax({
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.meals.js b/src/main/webapp/resources/js/topjava.meals.js
+--- a/src/main/webapp/resources/js/topjava.meals.js	(revision 0a139c77a3c2dda90aa10e38b00cdaa3bfbf4bf7)
++++ b/src/main/webapp/resources/js/topjava.meals.js	(revision f955a3caa57dd559659bb31fba0522c136436ed9)
+@@ -24,7 +24,7 @@
+                 "data": "dateTime",
+                 "render": function (date, type, row) {
+                     if (type === 'display') {
+-                        return date.replace('T', ' ').substr(0, 16);
++                        return formatDate(date);
+                     }
+                     return date;
+                 }
+@@ -56,4 +56,54 @@
+             $(row).attr("data-meal-excess", data.excess);
+         }
+     });
++
++//  http://xdsoft.net/jqplugins/datetimepicker/
++    var startDate = $('#startDate');
++    var endDate = $('#endDate');
++    const dateOptions = {
++        timepicker: false,
++        format: 'Y-m-d',
++        formatDate: 'Y-m-d',
++    };
++    startDate.datetimepicker({
++        ...dateOptions,
++        onShow: function (ct) {
++            this.setOptions({
++                maxDate: endDate.val() ? endDate.val() : false
++            })
++        }
++    });
++    endDate.datetimepicker({
++        ...dateOptions,
++        onShow: function (ct) {
++            this.setOptions({
++                minDate: startDate.val() ? startDate.val() : false
++            })
++        }
++    });
++
++    var startTime = $('#startTime');
++    var endTime = $('#endTime');
++    startTime.datetimepicker({
++        datepicker: false,
++        format: 'H:i',
++        onShow: function (ct) {
++            this.setOptions({
++                maxTime: endTime.val() ? endTime.val() : false
++            })
++        }
++    });
++    endTime.datetimepicker({
++        datepicker: false,
++        format: 'H:i',
++        onShow: function (ct) {
++            this.setOptions({
++                minTime: startTime.val() ? startTime.val() : false
++            })
++        }
++    });
++
++    $('#dateTime').datetimepicker({
++        format: 'Y-m-d H:i'
++    });
+ });
+\ No newline at end of file

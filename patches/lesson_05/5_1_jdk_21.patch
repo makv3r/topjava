@@ -1,0 +1,299 @@
+Subject: [PATCH] 5_1_jdk_21
+---
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1751040986786)
+@@ -35,7 +35,7 @@
+         return meals.stream()
+                 .filter(filter)
+                 .map(meal -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay))
+-                .collect(Collectors.toList());
++                .toList();
+     }
+ 
+     private static MealTo createTo(Meal meal, boolean excess) {
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1751040986808)
+@@ -58,32 +58,30 @@
+         String action = request.getParameter("action");
+ 
+         switch (action == null ? "all" : action) {
+-            case "delete":
++            case "delete" -> {
+                 int id = getId(request);
+                 mealController.delete(id);
+                 response.sendRedirect("meals");
+-                break;
+-            case "create":
+-            case "update":
++            }
++            case "create", "update" -> {
+                 final Meal meal = "create".equals(action) ?
+                         new Meal(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES), "", 1000) :
+                         mealController.get(getId(request));
+                 request.setAttribute("meal", meal);
+                 request.getRequestDispatcher("/mealForm.jsp").forward(request, response);
+-                break;
+-            case "filter":
++            }
++            case "filter" -> {
+                 LocalDate startDate = parseLocalDate(request.getParameter("startDate"));
+                 LocalDate endDate = parseLocalDate(request.getParameter("endDate"));
+                 LocalTime startTime = parseLocalTime(request.getParameter("startTime"));
+                 LocalTime endTime = parseLocalTime(request.getParameter("endTime"));
+                 request.setAttribute("meals", mealController.getBetween(startDate, startTime, endDate, endTime));
+                 request.getRequestDispatcher("/meals.jsp").forward(request, response);
+-                break;
+-            case "all":
+-            default:
++            }
++            default -> {
+                 request.setAttribute("meals", mealController.getAll());
+                 request.getRequestDispatcher("/meals.jsp").forward(request, response);
+-                break;
++            }
+         }
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1751040986542)
+@@ -62,7 +62,7 @@
+     }
+ 
+     public User(Integer id, String name, String email, String password, Role... roles) {
+-        this(id, name, email, password, DEFAULT_CALORIES_PER_DAY, true, new Date(), Arrays.asList(roles));
++        this(id, name, email, password, DEFAULT_CALORIES_PER_DAY, true, new Date(), List.of(roles));
+     }
+ 
+     public User(Integer id, String name, String email, String password, int caloriesPerDay, boolean enabled, Date registered, Collection<Role> roles) {
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/pom.xml	(date 1751041251030)
+@@ -12,7 +12,7 @@
+     <url>https://javaops-demo.ru/topjava</url>
+ 
+     <properties>
+-        <java.version>1.8</java.version>
++        <java.version>21</java.version>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <spring.version>5.3.39</spring.version>
+@@ -23,8 +23,8 @@
+         <javax-el.version>3.0.1-b12</javax-el.version>
+ 
+         <!-- Logging -->
+-        <logback.version>1.2.13</logback.version>
+-        <slf4j.version>1.7.36</slf4j.version>
++        <logback.version>1.5.18</logback.version>
++        <slf4j.version>2.0.17</slf4j.version>
+ 
+         <!--DB-->
+         <postgresql.version>42.7.7</postgresql.version>
+@@ -54,7 +54,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+-                <version>2.22.2</version>
++                <version>3.5.3</version>
+                 <configuration>
+                     <argLine>-Dfile.encoding=UTF-8</argLine>
+                 </configuration>
+@@ -83,6 +83,14 @@
+             <version>${logback.version}</version>
+             <scope>runtime</scope>
+         </dependency>
++
++        <!--  javax.annotation.meta.When.MAYBE compile warning, https://stackoverflow.com/questions/53326271/548473 -->
++        <dependency>
++            <groupId>com.google.code.findbugs</groupId>
++            <artifactId>annotations</artifactId>
++            <version>3.0.1</version>
++            <scope>compile</scope>
++        </dependency>
+ 
+         <dependency>
+             <groupId>javax.annotation</groupId>
+Index: src/test/java/ru/javawebinar/topjava/MatcherFactory.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/MatcherFactory.java b/src/test/java/ru/javawebinar/topjava/MatcherFactory.java
+--- a/src/test/java/ru/javawebinar/topjava/MatcherFactory.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/test/java/ru/javawebinar/topjava/MatcherFactory.java	(date 1751040986844)
+@@ -1,6 +1,6 @@
+ package ru.javawebinar.topjava;
+ 
+-import java.util.Arrays;
++import java.util.List;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ 
+@@ -27,7 +27,7 @@
+ 
+         @SafeVarargs
+         public final void assertMatch(Iterable<T> actual, T... expected) {
+-            assertMatch(actual, Arrays.asList(expected));
++            assertMatch(actual, List.of(expected));
+         }
+ 
+         public void assertMatch(Iterable<T> actual, Iterable<T> expected) {
+Index: src/test/java/ru/javawebinar/topjava/MealTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/MealTestData.java b/src/test/java/ru/javawebinar/topjava/MealTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/MealTestData.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/test/java/ru/javawebinar/topjava/MealTestData.java	(date 1751040986856)
+@@ -4,7 +4,6 @@
+ 
+ import java.time.Month;
+ import java.time.temporal.ChronoUnit;
+-import java.util.Arrays;
+ import java.util.List;
+ 
+ import static java.time.LocalDateTime.of;
+@@ -27,7 +26,7 @@
+     public static final Meal adminMeal1 = new Meal(ADMIN_MEAL_ID, of(2020, Month.JANUARY, 31, 14, 0), "Админ ланч", 510);
+     public static final Meal adminMeal2 = new Meal(ADMIN_MEAL_ID + 1, of(2020, Month.JANUARY, 31, 21, 0), "Админ ужин", 1500);
+ 
+-    public static final List<Meal> meals = Arrays.asList(meal7, meal6, meal5, meal4, meal3, meal2, meal1);
++    public static final List<Meal> meals = List.of(meal7, meal6, meal5, meal4, meal3, meal2, meal1);
+ 
+     public static Meal getNew() {
+         return new Meal(null, of(2020, Month.FEBRUARY, 1, 18, 0), "Созданный ужин", 300);
+Index: src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+--- a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(date 1751040986819)
+@@ -15,7 +15,6 @@
+ import java.util.*;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.function.Predicate;
+-import java.util.stream.Collectors;
+ 
+ @Repository
+ public class InMemoryMealRepository implements MealRepository {
+@@ -25,7 +24,7 @@
+     private final Map<Integer, InMemoryBaseRepository<Meal>> usersMealsMap = new ConcurrentHashMap<>();
+ 
+     {
+-        InMemoryBaseRepository<Meal> userMeals = new InMemoryBaseRepository<>();
++        var userMeals = new InMemoryBaseRepository<Meal>();
+         MealTestData.meals.forEach(userMeals::put);
+         usersMealsMap.put(UserTestData.USER_ID, userMeals);
+     }
+@@ -34,7 +33,7 @@
+     @Override
+     public Meal save(Meal meal, int userId) {
+         Objects.requireNonNull(meal, "meal must not be null");
+-        InMemoryBaseRepository<Meal> meals = usersMealsMap.computeIfAbsent(userId, uId -> new InMemoryBaseRepository<>());
++        var meals = usersMealsMap.computeIfAbsent(userId, uId -> new InMemoryBaseRepository<>());
+         return meals.save(meal);
+     }
+ 
+@@ -50,13 +49,13 @@
+ 
+     @Override
+     public boolean delete(int id, int userId) {
+-        InMemoryBaseRepository<Meal> meals = usersMealsMap.get(userId);
++        var meals = usersMealsMap.get(userId);
+         return meals != null && meals.delete(id);
+     }
+ 
+     @Override
+     public Meal get(int id, int userId) {
+-        InMemoryBaseRepository<Meal> meals = usersMealsMap.get(userId);
++        var meals = usersMealsMap.get(userId);
+         return meals == null ? null : meals.get(id);
+     }
+ 
+@@ -71,11 +70,11 @@
+     }
+ 
+     private List<Meal> filterByPredicate(int userId, Predicate<Meal> filter) {
+-        InMemoryBaseRepository<Meal> meals = usersMealsMap.get(userId);
++        var meals = usersMealsMap.get(userId);
+         return meals == null ? Collections.emptyList() :
+                 meals.getCollection().stream()
+                         .filter(filter)
+                         .sorted(Comparator.comparing(Meal::getDateTime).reversed())
+-                        .collect(Collectors.toList());
++                        .toList();
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(date 1751040986581)
+@@ -41,9 +41,10 @@
+         if (user.isNew()) {
+             Number newKey = insertUser.executeAndReturnKey(parameterSource);
+             user.setId(newKey.intValue());
+-        } else if (namedParameterJdbcTemplate.update(
+-                "UPDATE users SET name=:name, email=:email, password=:password, " +
+-                        "registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id", parameterSource) == 0) {
++        } else if (namedParameterJdbcTemplate.update("""
++                   UPDATE users SET name=:name, email=:email, password=:password, 
++                   registered=:registered, enabled=:enabled, calories_per_day=:caloriesPerDay WHERE id=:id
++                """, parameterSource) == 0) {
+             return null;
+         }
+         return user;
+Index: src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+--- a/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(revision 7d40f44a8a48a5647e234f276e8844b2577a0384)
++++ b/src/test/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(date 1751040986830)
+@@ -7,7 +7,6 @@
+ import java.util.Comparator;
+ import java.util.List;
+ import java.util.Objects;
+-import java.util.stream.Collectors;
+ 
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+@@ -27,7 +26,7 @@
+     public List<User> getAll() {
+         return getCollection().stream()
+                 .sorted(Comparator.comparing(User::getName).thenComparing(User::getEmail))
+-                .collect(Collectors.toList());
++                .toList();
+     }
+ 
+     @Override

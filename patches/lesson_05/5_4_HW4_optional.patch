@@ -1,0 +1,125 @@
+Index: src/test/resources/logback-test.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/resources/logback-test.xml	(revision 00aca26621a74d8c35d4f688089a362fbab6c064)
++++ src/test/resources/logback-test.xml	(date 1603921128015)
+@@ -7,12 +7,22 @@
+     <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+         <encoder>
+             <charset>UTF-8</charset>
+-            <pattern>%d{HH:mm:ss.SSS} %-5level %class{50}.%M:%L - %msg%n</pattern>
++            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%class{50}.%M:%L) - %msg%n</pattern>
++        </encoder>
++    </appender>
++
++    <appender name="result" class="ch.qos.logback.core.ConsoleAppender">
++        <encoder>
++            <charset>UTF-8</charset>
++            <pattern>%magenta(%msg%n)</pattern>
+         </encoder>
+     </appender>
++    <logger name="result" level="INFO" additivity="false">
++        <appender-ref ref="result"/>
++    </logger>
+ 
+-    <logger name="org.postgresql" level="debug"/>
+-    <logger name="org.springframework.jdbc" level="info"/>
++<!--    <logger name="org.postgresql" level="debug"/>-->
++<!--    <logger name="org.springframework.jdbc" level="info"/>-->
+     <logger name="ru.javawebinar.topjava" level="debug"/>
+ 
+     <root level="INFO">
+Index: src/main/resources/logback.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/logback.xml	(revision 00aca26621a74d8c35d4f688089a362fbab6c064)
++++ src/main/resources/logback.xml	(date 1603921062517)
+@@ -16,7 +16,7 @@
+     <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+         <encoder>
+             <charset>UTF-8</charset>
+-            <pattern>%d{HH:mm:ss.SSS} %-5level %class{50}.%M:%L - %msg%n</pattern>
++            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%class{50}.%M:%L) - %msg%n</pattern>
+         </encoder>
+     </appender>
+ 
+Index: src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(revision 00aca26621a74d8c35d4f688089a362fbab6c064)
++++ src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(date 1603921250090)
+@@ -1,7 +1,13 @@
+ package ru.javawebinar.topjava.service;
+ 
++import org.junit.AfterClass;
++import org.junit.Assert;
++import org.junit.Rule;
+ import org.junit.Test;
++import org.junit.rules.Stopwatch;
++import org.junit.runner.Description;
+ import org.junit.runner.RunWith;
++import org.slf4j.Logger;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.dao.DataAccessException;
+ import org.springframework.test.context.ContextConfiguration;
+@@ -13,8 +19,10 @@
+ 
+ import java.time.LocalDate;
+ import java.time.Month;
++import java.util.concurrent.TimeUnit;
+ 
+ import static org.junit.Assert.assertThrows;
++import static org.slf4j.LoggerFactory.getLogger;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
+ import static ru.javawebinar.topjava.UserTestData.USER_ID;
+@@ -26,10 +34,33 @@
+ @RunWith(SpringRunner.class)
+ @Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
+ public class MealServiceTest {
++    private static final Logger log = getLogger("result");
++
++    private static final StringBuilder results = new StringBuilder();
++
++    @Rule
++    // http://stackoverflow.com/questions/14892125/what-is-the-best-practice-to-determine-the-execution-time-of-the-bussiness-relev
++    public final Stopwatch stopwatch = new Stopwatch() {
++        @Override
++        protected void finished(long nanos, Description description) {
++            String result = String.format("\n%-25s %7d", description.getMethodName(), TimeUnit.NANOSECONDS.toMillis(nanos));
++            results.append(result);
++            log.info(result + " ms\n");
++        }
++    };
+ 
+     @Autowired
+     private MealService service;
+ 
++    @AfterClass
++    public static void printResult() {
++        log.info("\n---------------------------------" +
++                "\nTest                 Duration, ms" +
++                "\n---------------------------------" +
++                results +
++                "\n---------------------------------");
++    }
++
+     @Test
+     public void delete() {
+         service.delete(MEAL1_ID, USER_ID);
+@@ -88,7 +119,8 @@
+ 
+     @Test
+     public void updateNotOwn() {
+-        assertThrows(NotFoundException.class, () -> service.update(meal1, ADMIN_ID));
++        NotFoundException exception = assertThrows(NotFoundException.class, () -> service.update(meal1, ADMIN_ID));
++        Assert.assertEquals("Not found entity with id=" + MEAL1_ID, exception.getMessage());
+         MEAL_MATCHER.assertMatch(service.get(MEAL1_ID, USER_ID), meal1);
+     }
+ 

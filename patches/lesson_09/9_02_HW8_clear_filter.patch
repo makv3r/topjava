@@ -1,0 +1,39 @@
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.meals.js b/src/main/webapp/resources/js/topjava.meals.js
+--- a/src/main/webapp/resources/js/topjava.meals.js	(revision 580009840ddc181c0644dff5c071368c27762435)
++++ b/src/main/webapp/resources/js/topjava.meals.js	(date 1628103258444)
+@@ -12,6 +12,11 @@
+     }
+ }
+ 
++function clearFilter() {
++    $("#filter")[0].reset();
++    $.get(mealAjaxUrl, updateTableByData);
++}
++
+ $(function () {
+     makeEditable(
+         $("#datatable").DataTable({
+Index: src/main/webapp/WEB-INF/jsp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/meals.jsp b/src/main/webapp/WEB-INF/jsp/meals.jsp
+--- a/src/main/webapp/WEB-INF/jsp/meals.jsp	(revision 580009840ddc181c0644dff5c071368c27762435)
++++ b/src/main/webapp/WEB-INF/jsp/meals.jsp	(date 1628103190591)
+@@ -37,6 +37,10 @@
+                 </form>
+             </div>
+             <div class="card-footer text-right">
++                <button class="btn btn-danger" onclick="clearFilter()">
++                    <span class="fa fa-remove"></span>
++                    <spring:message code="common.cancel"/>
++                </button>
+                 <button class="btn btn-primary" onclick="ctx.updateTable()">
+                     <span class="fa fa-filter"></span>
+                     <spring:message code="meal.filter"/>

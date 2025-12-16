@@ -1,0 +1,64 @@
+Subject: [PATCH] 1_5_simple_logging
+---
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision aa3118fe50b98e0da5ad4daf49955357c44efc1d)
++++ b/pom.xml	(revision 03657c985c6911fd5e72425adcdf0ad26832d77e)
+@@ -15,6 +15,8 @@
+         <java.version>1.8</java.version>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
++        <!-- Logging -->
++        <logback.version>1.2.13</logback.version>
+     </properties>
+ 
+     <build>
+@@ -39,6 +41,12 @@
+     </build>
+ 
+     <dependencies>
++        <dependency>
++            <groupId>ch.qos.logback</groupId>
++            <artifactId>logback-classic</artifactId>
++            <version>${logback.version}</version>
++        </dependency>
++
+         <!--Web-->
+         <dependency>
+             <groupId>javax.servlet</groupId>
+Index: src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision aa3118fe50b98e0da5ad4daf49955357c44efc1d)
++++ b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision 03657c985c6911fd5e72425adcdf0ad26832d77e)
+@@ -1,16 +1,22 @@
+ package ru.javawebinar.topjava.web;
+ 
++import org.slf4j.Logger;
++
+ import javax.servlet.ServletException;
+ import javax.servlet.http.HttpServlet;
+ import javax.servlet.http.HttpServletRequest;
+ import javax.servlet.http.HttpServletResponse;
+-
+ import java.io.IOException;
+ 
++import static org.slf4j.LoggerFactory.getLogger;
++
+ public class UserServlet extends HttpServlet {
++    private static final Logger log = getLogger(UserServlet.class);
+ 
+     @Override
+     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
++        log.debug("redirect to users");
++
+ //        request.getRequestDispatcher("/users.jsp").forward(request, response);
+         response.sendRedirect("users.jsp");
+     }

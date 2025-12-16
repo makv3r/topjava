@@ -1,0 +1,246 @@
+Index: src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(revision 9510b6f5882b781e3def22e32f04c413f061abcf)
++++ b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(date 1645677415601)
+@@ -42,8 +42,8 @@
+         Integer newId = created.getId();
+         User newUser = getNew();
+         newUser.setId(newId);
+-        assertMatch(created, newUser);
+-        assertMatch(service.get(newId), newUser);
++        USER_MATCHER.assertMatch(created, newUser);
++        USER_MATCHER.assertMatch(service.get(newId), newUser);
+     }
+ 
+     @Test
+@@ -66,7 +66,7 @@
+     @Test
+     public void get() {
+         User user = service.get(USER_ID);
+-        assertMatch(user, UserTestData.user);
++        USER_MATCHER.assertMatch(user, UserTestData.user);
+     }
+ 
+     @Test
+@@ -77,19 +77,19 @@
+     @Test
+     public void getByEmail() {
+         User user = service.getByEmail("admin@gmail.com");
+-        assertMatch(user, admin);
++        USER_MATCHER.assertMatch(user, admin);
+     }
+ 
+     @Test
+     public void update() {
+         User updated = getUpdated();
+         service.update(updated);
+-        assertMatch(service.get(USER_ID), getUpdated());
++        USER_MATCHER.assertMatch(service.get(USER_ID), getUpdated());
+     }
+ 
+     @Test
+     public void getAll() {
+         List<User> all = service.getAll();
+-        assertMatch(all, admin, guest, user);
++        USER_MATCHER.assertMatch(all, admin, guest, user);
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/UserTestData.java b/src/test/java/ru/javawebinar/topjava/UserTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/UserTestData.java	(revision 9510b6f5882b781e3def22e32f04c413f061abcf)
++++ b/src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1645677415618)
+@@ -3,14 +3,14 @@
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ 
+-import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.Date;
+ 
+-import static org.assertj.core.api.Assertions.assertThat;
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class UserTestData {
++    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator("registered", "roles");
++
+     public static final int USER_ID = START_SEQ;
+     public static final int ADMIN_ID = START_SEQ + 1;
+     public static final int GUEST_ID = START_SEQ + 2;
+@@ -34,16 +34,4 @@
+         updated.setRoles(Collections.singletonList(Role.ADMIN));
+         return updated;
+     }
+-
+-    public static void assertMatch(User actual, User expected) {
+-        assertThat(actual).usingRecursiveComparison().ignoringFields("registered", "roles").isEqualTo(expected);
+-    }
+-
+-    public static void assertMatch(Iterable<User> actual, User... expected) {
+-        assertMatch(actual, Arrays.asList(expected));
+-    }
+-
+-    public static void assertMatch(Iterable<User> actual, Iterable<User> expected) {
+-        assertThat(actual).usingRecursiveFieldByFieldElementComparatorIgnoringFields("registered", "roles").isEqualTo(expected);
+-    }
+ }
+Index: src/test/java/ru/javawebinar/topjava/MatcherFactory.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/MatcherFactory.java b/src/test/java/ru/javawebinar/topjava/MatcherFactory.java
+new file mode 100644
+--- /dev/null	(date 1645677415605)
++++ b/src/test/java/ru/javawebinar/topjava/MatcherFactory.java	(date 1645677415605)
+@@ -0,0 +1,37 @@
++package ru.javawebinar.topjava;
++
++import java.util.Arrays;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++/**
++ * Factory for creating test matchers.
++ * <p>
++ * Comparing actual and expected objects via AssertJ
++ */
++public class MatcherFactory {
++    public static <T> Matcher<T> usingIgnoringFieldsComparator(String... fieldsToIgnore) {
++        return new Matcher<>(fieldsToIgnore);
++    }
++
++    public static class Matcher<T> {
++        private final String[] fieldsToIgnore;
++
++        private Matcher(String... fieldsToIgnore) {
++            this.fieldsToIgnore = fieldsToIgnore;
++        }
++
++        public void assertMatch(T actual, T expected) {
++            assertThat(actual).usingRecursiveComparison().ignoringFields(fieldsToIgnore).isEqualTo(expected);
++        }
++
++        @SafeVarargs
++        public final void assertMatch(Iterable<T> actual, T... expected) {
++            assertMatch(actual, Arrays.asList(expected));
++        }
++
++        public void assertMatch(Iterable<T> actual, Iterable<T> expected) {
++            assertThat(actual).usingRecursiveFieldByFieldElementComparatorIgnoringFields(fieldsToIgnore).isEqualTo(expected);
++        }
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(revision 9510b6f5882b781e3def22e32f04c413f061abcf)
++++ b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(date 1645677415559)
+@@ -57,8 +57,8 @@
+         int newId = created.getId();
+         Meal newMeal = getNew();
+         newMeal.setId(newId);
+-        assertMatch(created, newMeal);
+-        assertMatch(service.get(newId, USER_ID), newMeal);
++        MEAL_MATCHER.assertMatch(created, newMeal);
++        MEAL_MATCHER.assertMatch(service.get(newId, USER_ID), newMeal);
+     }
+ 
+     @Test
+@@ -71,7 +71,7 @@
+     @Test
+     public void get() {
+         Meal actual = service.get(ADMIN_MEAL_ID, ADMIN_ID);
+-        assertMatch(actual, adminMeal1);
++        MEAL_MATCHER.assertMatch(actual, adminMeal1);
+     }
+ 
+     @Test
+@@ -88,30 +88,30 @@
+     public void update() {
+         Meal updated = getUpdated();
+         service.update(updated, USER_ID);
+-        assertMatch(service.get(MEAL1_ID, USER_ID), getUpdated());
++        MEAL_MATCHER.assertMatch(service.get(MEAL1_ID, USER_ID), getUpdated());
+     }
+ 
+     @Test
+     public void updateNotOwn() {
+         assertThrows(NotFoundException.class, () -> service.update(meal1, ADMIN_ID));
+-        assertMatch(service.get(MEAL1_ID, USER_ID), meal1);
++        MEAL_MATCHER.assertMatch(service.get(MEAL1_ID, USER_ID), meal1);
+     }
+ 
+     @Test
+     public void getAll() {
+-        assertMatch(service.getAll(USER_ID), meals);
++        MEAL_MATCHER.assertMatch(service.getAll(USER_ID), meals);
+     }
+ 
+     @Test
+     public void getBetweenInclusive() {
+-        assertMatch(service.getBetweenInclusive(
+-                LocalDate.of(2020, Month.JANUARY, 30),
+-                LocalDate.of(2020, Month.JANUARY, 30), USER_ID),
++        MEAL_MATCHER.assertMatch(service.getBetweenInclusive(
++                        LocalDate.of(2020, Month.JANUARY, 30),
++                        LocalDate.of(2020, Month.JANUARY, 30), USER_ID),
+                 meal3, meal2, meal1);
+     }
+ 
+     @Test
+     public void getBetweenWithNullDates() {
+-        assertMatch(service.getBetweenInclusive(null, null, USER_ID), meals);
++        MEAL_MATCHER.assertMatch(service.getBetweenInclusive(null, null, USER_ID), meals);
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/MealTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/MealTestData.java b/src/test/java/ru/javawebinar/topjava/MealTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/MealTestData.java	(revision 9510b6f5882b781e3def22e32f04c413f061abcf)
++++ b/src/test/java/ru/javawebinar/topjava/MealTestData.java	(date 1645677415612)
+@@ -8,10 +8,11 @@
+ import java.util.List;
+ 
+ import static java.time.LocalDateTime.of;
+-import static org.assertj.core.api.Assertions.assertThat;
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class MealTestData {
++    public static final MatcherFactory.Matcher<Meal> MEAL_MATCHER = MatcherFactory.usingIgnoringFieldsComparator();
++
+     public static final int NOT_FOUND = 10;
+     public static final int MEAL1_ID = START_SEQ + 3;
+     public static final int ADMIN_MEAL_ID = START_SEQ + 10;
+@@ -35,16 +36,4 @@
+     public static Meal getUpdated() {
+         return new Meal(MEAL1_ID, meal1.getDateTime().plus(2, ChronoUnit.MINUTES), "Обновленный завтрак", 200);
+     }
+-
+-    public static void assertMatch(Meal actual, Meal expected) {
+-        assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
+-    }
+-
+-    public static void assertMatch(Iterable<Meal> actual, Meal... expected) {
+-        assertMatch(actual, Arrays.asList(expected));
+-    }
+-
+-    public static void assertMatch(Iterable<Meal> actual, Iterable<Meal> expected) {
+-        assertThat(actual).usingRecursiveFieldByFieldElementComparator().isEqualTo(expected);
+-    }
+ }

@@ -1,0 +1,177 @@
+Subject: [PATCH] 1_0_fix_rename
+---
+Index: src/main/java/ru/javawebinar/topjava/util/UserMealsUtil.java
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/UserMealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/UserMealsUtil.java
+deleted file mode 100644
+--- a/src/main/java/ru/javawebinar/topjava/util/UserMealsUtil.java	(revision c35112a9c6f33424180802a387dd935c159e1c7e)
++++ /dev/null	(revision c35112a9c6f33424180802a387dd935c159e1c7e)
+@@ -1,39 +0,0 @@
+-package ru.javawebinar.topjava.util;
+-
+-import ru.javawebinar.topjava.model.UserMeal;
+-import ru.javawebinar.topjava.model.UserMealWithExcess;
+-
+-import java.time.LocalDateTime;
+-import java.time.LocalTime;
+-import java.time.Month;
+-import java.util.Arrays;
+-import java.util.List;
+-
+-public class UserMealsUtil {
+-    public static void main(String[] args) {
+-        List<UserMeal> meals = Arrays.asList(
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500),
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000),
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500),
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 0, 0), "Еда на граничное значение", 100),
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 10, 0), "Завтрак", 1000),
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
+-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
+-        );
+-
+-        List<UserMealWithExcess> mealsTo = filteredByCycles(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000);
+-        mealsTo.forEach(System.out::println);
+-
+-//        System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));
+-    }
+-
+-    public static List<UserMealWithExcess> filteredByCycles(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+-        // TODO return filtered list with excess. Implement by cycles
+-        return null;
+-    }
+-
+-    public static List<UserMealWithExcess> filteredByStreams(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+-        // TODO Implement by streams
+-        return null;
+-    }
+-}
+Index: src/main/java/ru/javawebinar/topjava/util/TimeUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java b/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java	(revision c35112a9c6f33424180802a387dd935c159e1c7e)
++++ b/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java	(date 1749121291439)
+@@ -4,6 +4,6 @@
+ 
+ public class TimeUtil {
+     public static boolean isBetweenHalfOpen(LocalTime lt, LocalTime startTime, LocalTime endTime) {
+-        return lt.compareTo(startTime) >= 0 && lt.compareTo(endTime) < 0;
++        return !lt.isBefore(startTime) && lt.isBefore(endTime);
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/model/UserMealWithExcess.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/UserMealWithExcess.java b/src/main/java/ru/javawebinar/topjava/model/MealTo.java
+rename from src/main/java/ru/javawebinar/topjava/model/UserMealWithExcess.java
+rename to src/main/java/ru/javawebinar/topjava/model/MealTo.java
+--- a/src/main/java/ru/javawebinar/topjava/model/UserMealWithExcess.java	(revision c35112a9c6f33424180802a387dd935c159e1c7e)
++++ b/src/main/java/ru/javawebinar/topjava/model/MealTo.java	(date 1749121291405)
+@@ -2,7 +2,7 @@
+ 
+ import java.time.LocalDateTime;
+ 
+-public class UserMealWithExcess {
++public class MealTo {
+     private final LocalDateTime dateTime;
+ 
+     private final String description;
+@@ -11,7 +11,7 @@
+ 
+     private final boolean excess;
+ 
+-    public UserMealWithExcess(LocalDateTime dateTime, String description, int calories, boolean excess) {
++    public MealTo(LocalDateTime dateTime, String description, int calories, boolean excess) {
+         this.dateTime = dateTime;
+         this.description = description;
+         this.calories = calories;
+@@ -20,7 +20,7 @@
+ 
+     @Override
+     public String toString() {
+-        return "UserMealWithExcess{" +
++        return "MealTo{" +
+                 "dateTime=" + dateTime +
+                 ", description='" + description + '\'' +
+                 ", calories=" + calories +
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+new file mode 100644
+--- /dev/null	(date 1749121291426)
++++ b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1749121291426)
+@@ -0,0 +1,39 @@
++package ru.javawebinar.topjava.util;
++
++import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.model.MealTo;
++
++import java.time.LocalDateTime;
++import java.time.LocalTime;
++import java.time.Month;
++import java.util.Arrays;
++import java.util.List;
++
++public class MealsUtil {
++    public static void main(String[] args) {
++        List<Meal> meals = Arrays.asList(
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500),
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000),
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500),
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 0, 0), "Еда на граничное значение", 100),
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 10, 0), "Завтрак", 1000),
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
++                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
++        );
++
++        List<MealTo> mealsTo = filteredByCycles(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000);
++        mealsTo.forEach(System.out::println);
++
++//        System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));
++    }
++
++    public static List<MealTo> filteredByCycles(List<Meal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
++        // TODO return filtered list with excess. Implement by cycles
++        return null;
++    }
++
++    public static List<MealTo> filteredByStreams(List<Meal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
++        // TODO Implement by streams
++        return null;
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/model/UserMeal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/UserMeal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+rename from src/main/java/ru/javawebinar/topjava/model/UserMeal.java
+rename to src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/UserMeal.java	(revision c35112a9c6f33424180802a387dd935c159e1c7e)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1749121291367)
+@@ -2,14 +2,14 @@
+ 
+ import java.time.LocalDateTime;
+ 
+-public class UserMeal {
++public class Meal {
+     private final LocalDateTime dateTime;
+ 
+     private final String description;
+ 
+     private final int calories;
+ 
+-    public UserMeal(LocalDateTime dateTime, String description, int calories) {
++    public Meal(LocalDateTime dateTime, String description, int calories) {
+         this.dateTime = dateTime;
+         this.description = description;
+         this.calories = calories;

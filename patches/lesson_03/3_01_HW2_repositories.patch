@@ -1,0 +1,256 @@
+Subject: [PATCH] 3_01_HW2_repositories
+---
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(revision fd1338ad10db2a98433b427e4edb7e89ccafe3d0)
++++ b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(date 1740018205786)
+@@ -1,45 +1,57 @@
+ package ru.javawebinar.topjava.repository.inmemory;
+ 
+-import org.slf4j.Logger;
+-import org.slf4j.LoggerFactory;
+ import org.springframework.stereotype.Repository;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+ 
+-import java.util.Collections;
++import java.util.Comparator;
+ import java.util.List;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.stream.Collectors;
+ 
+ @Repository
+ public class InMemoryUserRepository implements UserRepository {
+-    private static final Logger log = LoggerFactory.getLogger(InMemoryUserRepository.class);
+ 
+-    @Override
+-    public boolean delete(int id) {
+-        log.info("delete {}", id);
+-        return true;
+-    }
++    public static final int USER_ID = 1;
++    public static final int ADMIN_ID = 2;
++
++    private final Map<Integer, User> usersMap = new ConcurrentHashMap<>();
++    private final AtomicInteger counter = new AtomicInteger(0);
+ 
+     @Override
+     public User save(User user) {
+-        log.info("save {}", user);
+-        return user;
++        if (user.isNew()) {
++            user.setId(counter.incrementAndGet());
++            usersMap.put(user.getId(), user);
++            return user;
++        }
++        return usersMap.computeIfPresent(user.getId(), (id, oldUser) -> user);
+     }
++
++    @Override
++    public boolean delete(int id) {
++        return usersMap.remove(id) != null;
++    }
+ 
+     @Override
+     public User get(int id) {
+-        log.info("get {}", id);
+-        return null;
++        return usersMap.get(id);
+     }
+ 
+     @Override
+     public List<User> getAll() {
+-        log.info("getAll");
+-        return Collections.emptyList();
++        return usersMap.values().stream()
++                .sorted(Comparator.comparing(User::getName).thenComparing(User::getEmail))
++                .collect(Collectors.toList());
+     }
+ 
+     @Override
+     public User getByEmail(String email) {
+-        log.info("getByEmail {}", email);
+-        return null;
++        return usersMap.values().stream()
++                .filter(u -> email.equals(u.getEmail()))
++                .findFirst()
++                .orElse(null);
+     }
+-}
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(revision fd1338ad10db2a98433b427e4edb7e89ccafe3d0)
++++ b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(date 1740018205773)
+@@ -1,46 +1,68 @@
+ package ru.javawebinar.topjava.repository.inmemory;
+ 
++import org.springframework.stereotype.Repository;
++import org.springframework.util.CollectionUtils;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ import ru.javawebinar.topjava.util.MealsUtil;
+ 
+-import java.util.Collection;
++import java.time.LocalDateTime;
++import java.time.Month;
++import java.util.Collections;
++import java.util.Comparator;
++import java.util.List;
+ import java.util.Map;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.stream.Collectors;
+ 
++import static ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepository.ADMIN_ID;
++import static ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepository.USER_ID;
++
++@Repository
+ public class InMemoryMealRepository implements MealRepository {
+-    private final Map<Integer, Meal> mealsMap = new ConcurrentHashMap<>();
++
++    // Map  userId -> (mealId-> meal)
++    private final Map<Integer, Map<Integer, Meal>> usersMealsMap = new ConcurrentHashMap<>();
+     private final AtomicInteger counter = new AtomicInteger(0);
+ 
+     {
+-        MealsUtil.meals.forEach(this::save);
++        MealsUtil.meals.forEach(meal -> save(meal, USER_ID));
++        save(new Meal(LocalDateTime.of(2015, Month.JUNE, 1, 14, 0), "Админ ланч", 510), ADMIN_ID);
++        save(new Meal(LocalDateTime.of(2015, Month.JUNE, 1, 21, 0), "Админ ужин", 1500), ADMIN_ID);
+     }
++
+ 
+     @Override
+-    public Meal save(Meal meal) {
++    public Meal save(Meal meal, int userId) {
++        // We cannot use method reference "ConcurrentHashMap::new" here. It will be equivalent wrong "new ConcurrentHashMap<>(userId)"
++        Map<Integer, Meal> meals = usersMealsMap.computeIfAbsent(userId, uId -> new ConcurrentHashMap<>());
+         if (meal.isNew()) {
+             meal.setId(counter.incrementAndGet());
+-            mealsMap.put(meal.getId(), meal);
++            meals.put(meal.getId(), meal);
+             return meal;
+         }
+-        // handle case: update, but not present in storage
+-        return mealsMap.computeIfPresent(meal.getId(), (id, oldMeal) -> meal);
++        return meals.computeIfPresent(meal.getId(), (id, oldMeal) -> meal);
+     }
+ 
+     @Override
+-    public boolean delete(int id) {
+-        return mealsMap.remove(id) != null;
++    public boolean delete(int id, int userId) {
++        Map<Integer, Meal> meals = usersMealsMap.get(userId);
++        return meals != null && meals.remove(id) != null;
+     }
+ 
+     @Override
+-    public Meal get(int id) {
+-        return mealsMap.get(id);
++    public Meal get(int id, int userId) {
++        Map<Integer, Meal> meals = usersMealsMap.get(userId);
++        return meals == null ? null : meals.get(id);
+     }
+ 
+     @Override
+-    public Collection<Meal> getAll() {
+-        return mealsMap.values();
++    public List<Meal> getAll(int userId) {
++        Map<Integer, Meal> meals = usersMealsMap.get(userId);
++        return CollectionUtils.isEmpty(meals) ? Collections.emptyList() :
++                meals.values().stream()
++                        .sorted(Comparator.comparing(Meal::getDateTime).reversed())
++                        .collect(Collectors.toList());
+     }
+-}
+-
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(revision fd1338ad10db2a98433b427e4edb7e89ccafe3d0)
++++ b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1740018205823)
+@@ -37,7 +37,7 @@
+                 Integer.parseInt(request.getParameter("calories")));
+ 
+         log.info(meal.isNew() ? "Create {}" : "Update {}", meal);
+-        repository.save(meal);
++        repository.save(meal, SecurityUtil.authUserId());
+         response.sendRedirect("meals");
+     }
+ 
+@@ -49,14 +49,14 @@
+             case "delete":
+                 int id = getId(request);
+                 log.info("Delete id={}", id);
+-                repository.delete(id);
++                repository.delete(id, SecurityUtil.authUserId());
+                 response.sendRedirect("meals");
+                 break;
+             case "create":
+             case "update":
+                 final Meal meal = "create".equals(action) ?
+                         new Meal(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES), "", 1000) :
+-                        repository.get(getId(request));
++                        repository.get(getId(request), SecurityUtil.authUserId());
+                 request.setAttribute("meal", meal);
+                 request.getRequestDispatcher("/mealForm.jsp").forward(request, response);
+                 break;
+@@ -64,7 +64,7 @@
+             default:
+                 log.info("getAll");
+                 request.setAttribute("meals",
+-                        MealsUtil.getTos(repository.getAll(), MealsUtil.DEFAULT_CALORIES_PER_DAY));
++                        MealsUtil.getTos(repository.getAll(SecurityUtil.authUserId()), MealsUtil.DEFAULT_CALORIES_PER_DAY));
+                 request.getRequestDispatcher("/meals.jsp").forward(request, response);
+                 break;
+         }
+Index: src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(revision fd1338ad10db2a98433b427e4edb7e89ccafe3d0)
++++ b/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(date 1740018205802)
+@@ -2,19 +2,18 @@
+ 
+ import ru.javawebinar.topjava.model.Meal;
+ 
+-import java.util.Collection;
++import java.util.List;
+ 
+-// TODO add userId
+ public interface MealRepository {
+     // null if updated meal does not belong to userId
+-    Meal save(Meal meal);
++    Meal save(Meal meal, int userId);
+ 
+     // false if meal does not belong to userId
+-    boolean delete(int id);
++    boolean delete(int id, int userId);
+ 
+     // null if meal does not belong to userId
+-    Meal get(int id);
++    Meal get(int id, int userId);
+ 
+     // ORDERED dateTime desc
+-    Collection<Meal> getAll();
++    List<Meal> getAll(int userId);
+ }

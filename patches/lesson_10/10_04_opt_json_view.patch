@@ -1,0 +1,318 @@
+Index: src/main/java/ru/javawebinar/topjava/View.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/View.java b/src/main/java/ru/javawebinar/topjava/View.java
+new file mode 100644
+--- /dev/null	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
++++ b/src/main/java/ru/javawebinar/topjava/View.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -0,0 +1,6 @@
++package ru.javawebinar.topjava;
++
++public class View {
++    public interface JsonREST {}
++    public interface JsonUI {}
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -1,10 +1,14 @@
+ package ru.javawebinar.topjava.model;
+ 
+ import com.fasterxml.jackson.annotation.JsonBackReference;
++import com.fasterxml.jackson.annotation.JsonFormat;
++import com.fasterxml.jackson.annotation.JsonGetter;
++import com.fasterxml.jackson.annotation.JsonView;
+ import org.hibernate.annotations.OnDelete;
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.format.annotation.DateTimeFormat;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.util.DateTimeUtil;
+ 
+ import javax.persistence.*;
+@@ -34,7 +38,7 @@
+ 
+     @Column(name = "date_time", nullable = false)
+     @NotNull
+-    @DateTimeFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    @JsonView(View.JsonREST.class)
+     private LocalDateTime dateTime;
+ 
+     @Column(name = "description", nullable = false)
+@@ -104,6 +108,19 @@
+         this.user = user;
+     }
+ 
++
++    @JsonGetter
++    @JsonView(View.JsonUI.class)
++    @JsonFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    public LocalDateTime getDateTimeUI() {
++        return dateTime;
++    }
++
++    @DateTimeFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    public void setDateTimeUI(LocalDateTime dateTime) {
++        this.dateTime = dateTime;
++    }
++
+     @Override
+     public String toString() {
+         return "Meal{" +
+Index: src/main/java/ru/javawebinar/topjava/to/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/MealTo.java b/src/main/java/ru/javawebinar/topjava/to/MealTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/MealTo.java	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/java/ru/javawebinar/topjava/to/MealTo.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -1,11 +1,18 @@
+ package ru.javawebinar.topjava.to;
+ 
++import com.fasterxml.jackson.annotation.JsonFormat;
++import com.fasterxml.jackson.annotation.JsonGetter;
++import com.fasterxml.jackson.annotation.JsonView;
++import ru.javawebinar.topjava.View;
++import ru.javawebinar.topjava.util.DateTimeUtil;
++
+ import java.beans.ConstructorProperties;
+ import java.time.LocalDateTime;
+ import java.util.Objects;
+ 
+ public class MealTo extends BaseTo {
+ 
++    @JsonView(View.JsonREST.class)
+     private final LocalDateTime dateTime;
+ 
+     private final String description;
+@@ -56,6 +63,13 @@
+         return Objects.hash(id, dateTime, description, calories, excess);
+     }
+ 
++    @JsonGetter
++    @JsonView(View.JsonUI.class)
++    @JsonFormat(pattern = DateTimeUtil.DATE_TIME_PATTERN)
++    public LocalDateTime getDateTimeUI() {
++        return dateTime;
++    }
++
+     @Override
+     public String toString() {
+         return "MealTo{" +
+Index: src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java b/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java
+--- a/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/java/ru/javawebinar/topjava/web/json/JacksonObjectMapper.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -7,6 +7,7 @@
+ import com.fasterxml.jackson.databind.SerializationFeature;
+ import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
+ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
++import ru.javawebinar.topjava.View;
+ 
+ /**
+  * <p>
+@@ -29,6 +30,9 @@
+         setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE);
+         setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+         setSerializationInclusion(JsonInclude.Include.NON_NULL);
++
++//      https://stackoverflow.com/questions/22875642/jackson-set-default-view
++        setConfig(getSerializationConfig().withView(View.JsonREST.class));
+     }
+ 
+     public static ObjectMapper getMapper() {
+Index: src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java b/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/java/ru/javawebinar/topjava/web/json/JsonUtil.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -2,6 +2,7 @@
+ 
+ import com.fasterxml.jackson.core.JsonProcessingException;
+ import com.fasterxml.jackson.databind.ObjectReader;
++import com.fasterxml.jackson.databind.ObjectWriter;
+ 
+ import java.io.IOException;
+ import java.util.List;
+@@ -34,4 +35,12 @@
+             throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
+         }
+     }
++
++    public static <T> String writeValue(T obj, ObjectWriter ow) {
++        try {
++            return ow.writeValueAsString(obj);
++        } catch (JsonProcessingException e) {
++            throw new IllegalStateException("Invalid write to JSON:\n'" + obj + "'", e);
++        }
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -1,11 +1,13 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
++import com.fasterxml.jackson.annotation.JsonView;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.lang.Nullable;
+ import org.springframework.validation.BindingResult;
+ import org.springframework.web.bind.annotation.*;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ import ru.javawebinar.topjava.util.ValidationUtil;
+@@ -21,12 +23,14 @@
+ 
+     @Override
+     @GetMapping
++    @JsonView(View.JsonUI.class)
+     public List<MealTo> getAll() {
+         return super.getAll();
+     }
+ 
+     @Override
+     @GetMapping( "/{id}")
++    @JsonView(View.JsonUI.class)
+     public Meal get(@PathVariable int id) {
+         return super.get(id);
+     }
+@@ -54,6 +58,7 @@
+ 
+     @Override
+     @GetMapping("/filter")
++    @JsonView(View.JsonUI.class)
+     public List<MealTo> getBetween(
+             @RequestParam @Nullable LocalDate startDate,
+             @RequestParam @Nullable LocalTime startTime,
+Index: src/main/webapp/WEB-INF/jsp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/meals.jsp b/src/main/webapp/WEB-INF/jsp/meals.jsp
+--- a/src/main/webapp/WEB-INF/jsp/meals.jsp	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/webapp/WEB-INF/jsp/meals.jsp	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -79,7 +79,7 @@
+ 
+                     <div class="form-group">
+                         <label for="dateTime" class="col-form-label"><spring:message code="meal.dateTime"/></label>
+-                        <input class="form-control" id="dateTime" name="dateTime" autocomplete="off"
++                        <input class="form-control" id="dateTime" name="dateTimeUI" autocomplete="off"
+                                placeholder="<spring:message code="meal.dateTime"/>">
+                     </div>
+ 
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/webapp/resources/js/topjava.common.js	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -34,18 +34,12 @@
+     $("#modalTitle").html(i18n["editTitle"]);
+     $.get(ctx.ajaxUrl + id, function (data) {
+         $.each(data, function (key, value) {
+-            form.find("input[name='" + key + "']").val(
+-                key === "dateTime" ? formatDate(value) : value
+-            );
++            form.find("input[name='" + key + "']").val(value);
+         });
+         $('#editRow').modal();
+     });
+ }
+ 
+-function formatDate(date) {
+-    return date.replace('T', ' ').substr(0, 16);
+-}
+-
+ function deleteRow(id) {
+     if (confirm(i18n['common.confirm'])) {
+         $.ajax({
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.meals.js b/src/main/webapp/resources/js/topjava.meals.js
+--- a/src/main/webapp/resources/js/topjava.meals.js	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/main/webapp/resources/js/topjava.meals.js	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -21,13 +21,7 @@
+     makeEditable({
+         "columns": [
+             {
+-                "data": "dateTime",
+-                "render": function (date, type, row) {
+-                    if (type === 'display') {
+-                        return formatDate(date);
+-                    }
+-                    return date;
+-                }
++                "data": "dateTimeUI"
+             },
+             {
+                 "data": "description"
+Index: src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java b/src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(revision c329488baa659431bcf5a3794c833879569c6a21)
++++ b/src/test/java/ru/javawebinar/topjava/web/json/JsonUtilTest.java	(revision 2d01c9093897d2827bf34c67f06e0e149c76bdc3)
+@@ -1,12 +1,16 @@
+ package ru.javawebinar.topjava.web.json;
+ 
++import com.fasterxml.jackson.databind.ObjectWriter;
+ import org.junit.jupiter.api.Test;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ 
+ import java.util.List;
+ 
++import static org.hamcrest.CoreMatchers.containsString;
++import static org.hamcrest.MatcherAssert.assertThat;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ 
+ class JsonUtilTest {
+@@ -27,4 +31,12 @@
+         List<Meal> actual = JsonUtil.readValues(json, Meal.class);
+         MEAL_MATCHER.assertMatch(actual, meals);
+     }
++
++    @Test
++    public void writeWithView() {
++        ObjectWriter uiWriter = JacksonObjectMapper.getMapper().writerWithView(View.JsonUI.class);
++        String json = JsonUtil.writeValue(adminMeal1, uiWriter);
++        System.out.println(json);
++        assertThat(json, containsString("dateTimeUI"));
++    }
+ }
+\ No newline at end of file

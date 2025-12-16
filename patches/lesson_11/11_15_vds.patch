@@ -1,0 +1,55 @@
+Subject: [PATCH] 11_15_vds
+---
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-db.xml b/src/main/resources/spring/spring-db.xml
+--- a/src/main/resources/spring/spring-db.xml	(revision 7544331c58dc52a34eed4c32aba00dff039054e5)
++++ b/src/main/resources/spring/spring-db.xml	(date 1692201411828)
+@@ -34,7 +34,16 @@
+               p:password="${database.password}"/>
+     </beans>
+ 
++    <beans profile="postgres">
++        <context:property-placeholder location="classpath:db/postgres.properties" system-properties-mode="OVERRIDE"/>
++    </beans>
++
++    <beans profile="vds">
++        <context:property-placeholder location="file:///#{systemEnvironment[TOPJAVA_ROOT]}/config/db.properties" system-properties-mode="OVERRIDE"/>
++    </beans>
++
+     <beans profile="postgres,vds">
++
+         <!--
+             For postgres driver logging
+             It uses java.util.logging and logged via jul-to-slf4j bridge
+@@ -44,8 +53,6 @@
+             <property name="staticMethod" value="org.slf4j.bridge.SLF4JBridgeHandler.install"/>
+         </bean>
+ 
+-        <context:property-placeholder location="classpath:db/postgres.properties" system-properties-mode="OVERRIDE"/>
+-
+         <bean id="dataSource"
+               class="org.apache.tomcat.jdbc.pool.DataSource"
+               p:driverClassName="org.postgresql.Driver"
+Index: config/db.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/db.properties b/config/db.properties
+new file mode 100644
+--- /dev/null	(date 1692201348294)
++++ b/config/db.properties	(date 1692201348294)
+@@ -0,0 +1,8 @@
++database.url=jdbc:postgresql://localhost:5432/topjava
++database.username=user
++database.password=password
++database.init=false
++jdbc.initLocation=classpath:db/initDB.sql
++jpa.showSql=false
++hibernate.format_sql=false
++hibernate.use_sql_comments=false
+\ No newline at end of file

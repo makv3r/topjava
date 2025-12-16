@@ -1,0 +1,81 @@
+Index: src/main/resources/db/postgres.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/postgres.properties b/src/main/resources/db/postgres.properties
+--- a/src/main/resources/db/postgres.properties	(revision d20d42058eff245ea4d2a5744233cc466ba9bd69)
++++ b/src/main/resources/db/postgres.properties	(date 1647699447634)
+@@ -10,4 +10,5 @@
+ jdbc.initLocation=classpath:db/initDB.sql
+ jpa.showSql=true
+ hibernate.format_sql=true
+-hibernate.use_sql_comments=true
+\ No newline at end of file
++#https://hibernate.atlassian.net/browse/HHH-13280
++hibernate.use_sql_comments=false
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java	(revision d20d42058eff245ea4d2a5744233cc466ba9bd69)
++++ b/src/main/java/ru/javawebinar/topjava/repository/datajpa/CrudUserRepository.java	(date 1647699342130)
+@@ -1,13 +1,12 @@
+ package ru.javawebinar.topjava.repository.datajpa;
+ 
+-import org.springframework.data.jpa.repository.EntityGraph;
+-import org.springframework.data.jpa.repository.JpaRepository;
+-import org.springframework.data.jpa.repository.Modifying;
+-import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.jpa.repository.*;
+ import org.springframework.data.repository.query.Param;
+ import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.User;
+ 
++import javax.persistence.QueryHint;
++
+ @Transactional(readOnly = true)
+ public interface CrudUserRepository extends JpaRepository<User, Integer> {
+     @Transactional
+@@ -15,9 +14,14 @@
+     @Query("DELETE FROM User u WHERE u.id=:id")
+     int delete(@Param("id") int id);
+ 
++    //  https://docs.jboss.org/hibernate/orm/5.2/userguide/html_single/Hibernate_User_Guide.html#hql-distinct
++    @QueryHints({
++            @QueryHint(name = org.hibernate.jpa.QueryHints.HINT_PASS_DISTINCT_THROUGH, value = "false")
++    })
+     User getByEmail(String email);
+ 
+-    @EntityGraph(attributePaths = {"meals", "roles"})
++    //    https://stackoverflow.com/a/46013654/548473
++    @EntityGraph(attributePaths = {"meals"}, type = EntityGraph.EntityGraphType.LOAD)
+     @Query("SELECT u FROM User u WHERE u.id=?1")
+     User getWithMeals(int id);
+ }
+Index: src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java	(revision d20d42058eff245ea4d2a5744233cc466ba9bd69)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jpa/JpaUserRepository.java	(date 1647699342136)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.repository.jpa;
+ 
++import org.hibernate.jpa.QueryHints;
+ import org.springframework.dao.support.DataAccessUtils;
+ import org.springframework.stereotype.Repository;
+ import org.springframework.transaction.annotation.Transactional;
+@@ -61,6 +62,7 @@
+     public User getByEmail(String email) {
+         List<User> users = em.createNamedQuery(User.BY_EMAIL, User.class)
+                 .setParameter(1, email)
++                .setHint(QueryHints.HINT_PASS_DISTINCT_THROUGH, false)
+                 .getResultList();
+         return DataAccessUtils.singleResult(users);
+     }

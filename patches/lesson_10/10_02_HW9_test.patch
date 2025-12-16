@@ -1,0 +1,148 @@
+Subject: [PATCH] 10_02_HW9_test
+---
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision 77f7b2ce7870688882b6d00896cee89d0a62eccc)
++++ b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1712785713153)
+@@ -1,7 +1,6 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
+ 
+-import org.junit.jupiter.api.Disabled;
+ import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.MediaType;
+@@ -18,12 +17,12 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+ import static ru.javawebinar.topjava.MealTestData.*;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.USER_ID;
+ import static ru.javawebinar.topjava.UserTestData.user;
+ import static ru.javawebinar.topjava.util.MealsUtil.createTo;
+ import static ru.javawebinar.topjava.util.MealsUtil.getTos;
+ 
+-@Disabled
+ class MealRestControllerTest extends AbstractControllerTest {
+ 
+     private static final String REST_URL = MealRestController.REST_URL + '/';
+@@ -33,16 +32,24 @@
+ 
+     @Test
+     void get() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL + MEAL1_ID))
++        perform(MockMvcRequestBuilders.get(REST_URL + MEAL1_ID)
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(MEAL_MATCHER.contentJson(meal1));
+     }
+ 
++    @Test
++    void getUnauth() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL + MEAL1_ID))
++                .andExpect(status().isUnauthorized());
++    }
++
+     @Test
+     void delete() throws Exception {
+-        perform(MockMvcRequestBuilders.delete(REST_URL + MEAL1_ID))
++        perform(MockMvcRequestBuilders.delete(REST_URL + MEAL1_ID)
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isNoContent());
+         assertThrows(NotFoundException.class, () -> mealService.get(MEAL1_ID, USER_ID));
+     }
+@@ -51,6 +58,7 @@
+     void update() throws Exception {
+         Meal updated = getUpdated();
+         perform(MockMvcRequestBuilders.put(REST_URL + MEAL1_ID).contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(user))
+                 .content(JsonUtil.writeValue(updated)))
+                 .andExpect(status().isNoContent());
+ 
+@@ -62,6 +70,7 @@
+         Meal newMeal = getNew();
+         ResultActions action = perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(user))
+                 .content(JsonUtil.writeValue(newMeal)))
+                 .andExpect(status().isCreated());
+ 
+@@ -74,7 +83,8 @@
+ 
+     @Test
+     void getAll() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL))
++        perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+@@ -85,7 +95,8 @@
+     void getBetween() throws Exception {
+         perform(MockMvcRequestBuilders.get(REST_URL + "filter")
+                 .param("startDate", "2020-01-30").param("startTime", "07:00")
+-                .param("endDate", "2020-01-31").param("endTime", "11:00"))
++                .param("endDate", "2020-01-31").param("endTime", "11:00")
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 .andExpect(TO_MATCHER.contentJson(createTo(meal5, true), createTo(meal1, false)));
+@@ -93,7 +104,8 @@
+ 
+     @Test
+     void getBetweenAll() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL + "filter?startDate=&endTime="))
++        perform(MockMvcRequestBuilders.get(REST_URL + "filter?startDate=&endTime=")
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isOk())
+                 .andExpect(TO_MATCHER.contentJson(getTos(meals, user.getCaloriesPerDay())));
+     }
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(revision 77f7b2ce7870688882b6d00896cee89d0a62eccc)
++++ b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1712785713161)
+@@ -1,15 +1,13 @@
+ package ru.javawebinar.topjava.web;
+ 
+-import org.junit.jupiter.api.Disabled;
+ import org.junit.jupiter.api.Test;
+ 
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+-import static ru.javawebinar.topjava.MealTestData.meals;
+ import static ru.javawebinar.topjava.TestUtil.userAuth;
+ import static ru.javawebinar.topjava.UserTestData.admin;
+-import static ru.javawebinar.topjava.util.MealsUtil.getTos;
++import static ru.javawebinar.topjava.UserTestData.user;
+ 
+ class RootControllerTest extends AbstractControllerTest {
+ 
+@@ -32,13 +30,12 @@
+     }
+ 
+     @Test
+-    @Disabled
+     void getMeals() throws Exception {
+-        perform(get("/meals"))
++        perform(get("/meals")
++                .with(userAuth(user)))
+                 .andDo(print())
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("meals"))
+-                .andExpect(forwardedUrl("/WEB-INF/jsp/meals.jsp"))
+-                .andExpect(model().attribute("meals", getTos(meals, SecurityUtil.authUserCaloriesPerDay())));
++                .andExpect(forwardedUrl("/WEB-INF/jsp/meals.jsp"));
+     }
+ }
+\ No newline at end of file

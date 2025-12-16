@@ -1,0 +1,167 @@
+Subject: [PATCH] 6_09_hibernate_cache
+---
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 996841b7e7fce5fd8efbcaec2ab3f619862d2d7c)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1699472664666)
+@@ -1,6 +1,8 @@
+ package ru.javawebinar.topjava.model;
+ 
+ import org.hibernate.annotations.BatchSize;
++import org.hibernate.annotations.Cache;
++import org.hibernate.annotations.CacheConcurrencyStrategy;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
+ 
+@@ -13,6 +15,7 @@
+ 
+ import static ru.javawebinar.topjava.util.MealsUtil.DEFAULT_CALORIES_PER_DAY;
+ 
++@Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+ @NamedQueries({
+         @NamedQuery(name = User.DELETE, query = "DELETE FROM User u WHERE u.id=:id"),
+         @NamedQuery(name = User.BY_EMAIL, query = "SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email=?1"),
+@@ -44,6 +47,7 @@
+     @NotNull
+     private Date registered = new Date();
+ 
++    @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+     @Enumerated(EnumType.STRING)
+     @CollectionTable(name = "user_role", joinColumns = @JoinColumn(name = "user_id"),
+             uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "role"}, name = "uk_user_role")})
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 996841b7e7fce5fd8efbcaec2ab3f619862d2d7c)
++++ b/pom.xml	(date 1699472664694)
+@@ -110,6 +110,11 @@
+             <artifactId>hibernate-validator</artifactId>
+             <version>${hibernate-validator.version}</version>
+         </dependency>
++        <dependency>
++            <groupId>org.hibernate</groupId>
++            <artifactId>hibernate-jcache</artifactId>
++            <version>${hibernate.version}</version>
++        </dependency>
+ 
+         <!--http://hibernate.org/validator/documentation/getting-started/#unified-expression-language-el-->
+         <dependency>
+Index: src/main/java/ru/javawebinar/topjava/repository/JpaUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/JpaUtil.java b/src/main/java/ru/javawebinar/topjava/repository/JpaUtil.java
+new file mode 100644
+--- /dev/null	(date 1699472664670)
++++ b/src/main/java/ru/javawebinar/topjava/repository/JpaUtil.java	(date 1699472664670)
+@@ -0,0 +1,21 @@
++package ru.javawebinar.topjava.repository;
++
++import org.hibernate.Session;
++import org.hibernate.SessionFactory;
++
++import javax.persistence.EntityManager;
++import javax.persistence.PersistenceContext;
++
++public class JpaUtil {
++
++    @PersistenceContext
++    private EntityManager em;
++
++    public void clear2ndLevelHibernateCache() {
++        Session s = (Session) em.getDelegate();
++        SessionFactory sf = s.getSessionFactory();
++//        sf.getCache().evictEntityData(User.class, AbstractBaseEntity.START_SEQ);
++//        sf.getCache().evictEntityData(User.class);
++        sf.getCache().evictAllRegions();
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java	(revision 996841b7e7fce5fd8efbcaec2ab3f619862d2d7c)
++++ b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java	(date 1699472695378)
+@@ -7,9 +7,6 @@
+ import static ru.javawebinar.topjava.Profiles.JDBC;
+ 
+ @ActiveProfiles(JDBC)
+-public class JdbcUserServiceTest extends AbstractUserServiceTest {
+-    @Override
+-    @Ignore
+-    public void createWithException() throws Exception {
+-    }
++@Ignore
++public class JdbcUserServiceTest extends AbstractUserServiceTest {
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 996841b7e7fce5fd8efbcaec2ab3f619862d2d7c)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1699472664689)
+@@ -14,6 +14,7 @@
+ import java.util.Date;
+ import java.util.List;
+ import java.util.Set;
++import ru.javawebinar.topjava.repository.JpaUtil;
+ 
+ import static org.junit.Assert.assertThrows;
+ import static ru.javawebinar.topjava.UserTestData.*;
+@@ -26,9 +27,13 @@
+     @Autowired
+     private CacheManager cacheManager;
+ 
++    @Autowired
++    protected JpaUtil jpaUtil;
++
+     @Before
+     public void setup() {
+         cacheManager.getCache("users").clear();
++        jpaUtil.clear2ndLevelHibernateCache();
+     }
+ 
+     @Test
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-db.xml b/src/main/resources/spring/spring-db.xml
+--- a/src/main/resources/spring/spring-db.xml	(revision 996841b7e7fce5fd8efbcaec2ab3f619862d2d7c)
++++ b/src/main/resources/spring/spring-db.xml	(date 1699472664675)
+@@ -73,6 +73,12 @@
+                     <entry key="#{T(org.hibernate.cfg.AvailableSettings).USE_SQL_COMMENTS}" value="${hibernate.use_sql_comments}"/>
+                     <entry key="#{T(org.hibernate.cfg.AvailableSettings).JPA_PROXY_COMPLIANCE}" value="false"/>
+                     <!--<entry key="#{T(org.hibernate.cfg.AvailableSettings).HBM2DDL_AUTO}" value="${hibernate.hbm2ddl.auto}"/>-->
++
++                    <!--https://github.com/hibernate/hibernate-orm/blob/master/documentation/src/main/asciidoc/userguide/chapters/caching/Caching.adoc#caching-provider-jcache-->
++                    <entry key="#{T(org.hibernate.cfg.AvailableSettings).CACHE_REGION_FACTORY}" value="org.hibernate.cache.jcache.internal.JCacheRegionFactory"/>
++                    <entry key="#{T(org.hibernate.cache.jcache.ConfigSettings).PROVIDER}" value="org.ehcache.jsr107.EhcacheCachingProvider"/>
++                    <entry key="#{T(org.hibernate.cfg.AvailableSettings).USE_SECOND_LEVEL_CACHE}" value="true"/>
++                    <entry key="#{T(org.hibernate.cfg.AvailableSettings).USE_QUERY_CACHE}" value="false"/> <!--default-->
+                 </map>
+             </property>
+ 
+@@ -87,6 +93,8 @@
+         <!-- Transaction manager for a single JPA EntityManagerFactory (alternative to JTA) -->
+         <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager"
+               p:entityManagerFactory-ref="entityManagerFactory"/>
++
++        <bean class="ru.javawebinar.topjava.repository.JpaUtil"/>
+     </beans>
+ 
+     <beans profile="jpa">

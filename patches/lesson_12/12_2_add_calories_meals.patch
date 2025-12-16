@@ -1,0 +1,1094 @@
+Subject: [PATCH] 12_2_add_calories_meals
+---
+Index: src/test/java/ru/javaops/topjava/user/web/AdminUserControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javaops/topjava/user/web/AdminUserControllerTest.java b/src/test/java/ru/javaops/topjava/user/web/AdminUserControllerTest.java
+--- a/src/test/java/ru/javaops/topjava/user/web/AdminUserControllerTest.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/test/java/ru/javaops/topjava/user/web/AdminUserControllerTest.java	(date 1745676808062)
+@@ -147,10 +147,20 @@
+         assertFalse(repository.getExisted(USER_ID).isEnabled());
+     }
+ 
++    @Test
++    @WithUserDetails(value = ADMIN_MAIL)
++    void getWithMeals() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL_SLASH + ADMIN_ID + "/with-meals"))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_WITH_MEALS_MATCHER.contentJson(admin));
++    }
++
+     @Test
+     @WithUserDetails(value = ADMIN_MAIL)
+     void createInvalid() throws Exception {
+-        User invalid = new User(null, null, "", "newPass", Role.USER, Role.ADMIN);
++        User invalid = new User(null, null, "", "newPass", 7300, Role.USER, Role.ADMIN);
+         perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(jsonWithPassword(invalid, "newPass")))
+@@ -198,7 +208,7 @@
+     @Test
+     @WithUserDetails(value = ADMIN_MAIL)
+     void createDuplicate() throws Exception {
+-        User expected = new User(null, "New", USER_MAIL, "newPass", Role.USER, Role.ADMIN);
++        User expected = new User(null, "New", USER_MAIL, "newPass", 2300, Role.USER, Role.ADMIN);
+         perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(jsonWithPassword(expected, "newPass")))
+Index: src/main/java/ru/javaops/topjava/user/repository/MealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/repository/MealRepository.java b/src/main/java/ru/javaops/topjava/user/repository/MealRepository.java
+new file mode 100644
+--- /dev/null	(date 1745676808040)
++++ b/src/main/java/ru/javaops/topjava/user/repository/MealRepository.java	(date 1745676808040)
+@@ -0,0 +1,33 @@
++
++package ru.javaops.topjava.user.repository;
++
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.transaction.annotation.Transactional;
++import ru.javaops.topjava.common.BaseRepository;
++import ru.javaops.topjava.common.error.DataConflictException;
++import ru.javaops.topjava.user.model.Meal;
++
++import java.time.LocalDateTime;
++import java.util.List;
++import java.util.Optional;
++
++@Transactional(readOnly = true)
++public interface MealRepository extends BaseRepository<Meal> {
++
++    @Query("SELECT m FROM Meal m WHERE m.user.id=:userId ORDER BY m.dateTime DESC")
++    List<Meal> getAll(int userId);
++
++    @Query("SELECT m from Meal m WHERE m.user.id=:userId AND m.dateTime >= :startDate AND m.dateTime < :endDate ORDER BY m.dateTime DESC")
++    List<Meal> getBetweenHalfOpen(int userId, LocalDateTime startDate, LocalDateTime endDate);
++
++    @Query("SELECT m FROM Meal m WHERE m.id = :id and m.user.id = :userId")
++    Optional<Meal> get(int userId, int id);
++
++    @Query("SELECT m FROM Meal m JOIN FETCH m.user WHERE m.id = :id and m.user.id = :userId")
++    Optional<Meal> getWithUser(int id, int userId);
++
++    default Meal getBelonged(int userId, int id) {
++        return get(userId, id).orElseThrow(
++                () -> new DataConflictException("Meal id=" + id + "   is not exist or doesn't belong to User id=" + userId));
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ru/javaops/topjava/user/web/ProfileControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javaops/topjava/user/web/ProfileControllerTest.java b/src/test/java/ru/javaops/topjava/user/web/ProfileControllerTest.java
+--- a/src/test/java/ru/javaops/topjava/user/web/ProfileControllerTest.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/test/java/ru/javaops/topjava/user/web/ProfileControllerTest.java	(date 1745676808062)
+@@ -8,10 +8,10 @@
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+ import ru.javaops.topjava.AbstractControllerTest;
+ import ru.javaops.topjava.common.util.JsonUtil;
+-import ru.javaops.topjava.user.UsersUtil;
+ import ru.javaops.topjava.user.model.User;
+ import ru.javaops.topjava.user.repository.UserRepository;
+ import ru.javaops.topjava.user.to.UserTo;
++import ru.javaops.topjava.user.util.UsersUtil;
+ 
+ import static org.hamcrest.Matchers.containsString;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+@@ -48,9 +48,19 @@
+         USER_MATCHER.assertMatch(repository.findAll(), admin, guest);
+     }
+ 
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void getWithMeals() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL + "/with-meals"))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_WITH_MEALS_MATCHER.contentJson(user));
++    }
++
+     @Test
+     void register() throws Exception {
+-        UserTo newTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword");
++        UserTo newTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword", 1500);
+         User newUser = UsersUtil.createNewFromTo(newTo);
+         ResultActions action = perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+@@ -68,7 +78,7 @@
+     @Test
+     @WithUserDetails(value = USER_MAIL)
+     void update() throws Exception {
+-        UserTo updatedTo = new UserTo(null, "newName", USER_MAIL, "newPassword");
++        UserTo updatedTo = new UserTo(null, "newName", USER_MAIL, "newPassword", 1500);
+         perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+@@ -79,7 +89,7 @@
+ 
+     @Test
+     void registerInvalid() throws Exception {
+-        UserTo newTo = new UserTo(null, null, null, null);
++        UserTo newTo = new UserTo(null, null, null, null, 1);
+         perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(newTo)))
+@@ -90,7 +100,7 @@
+     @Test
+     @WithUserDetails(value = USER_MAIL)
+     void updateInvalid() throws Exception {
+-        UserTo updatedTo = new UserTo(null, null, "password", null);
++        UserTo updatedTo = new UserTo(null, null, "password", null, 1);
+         perform(MockMvcRequestBuilders.put(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(updatedTo)))
+@@ -101,7 +111,7 @@
+     @Test
+     @WithUserDetails(value = USER_MAIL)
+     void updateDuplicate() throws Exception {
+-        UserTo updatedTo = new UserTo(null, "newName", ADMIN_MAIL, "newPassword");
++        UserTo updatedTo = new UserTo(null, "newName", ADMIN_MAIL, "newPassword", 1500);
+         perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+Index: src/test/java/ru/javaops/topjava/user/web/MealControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javaops/topjava/user/web/MealControllerTest.java b/src/test/java/ru/javaops/topjava/user/web/MealControllerTest.java
+new file mode 100644
+--- /dev/null	(date 1745676808062)
++++ b/src/test/java/ru/javaops/topjava/user/web/MealControllerTest.java	(date 1745676808062)
+@@ -0,0 +1,188 @@
++package ru.javaops.topjava.user.web;
++
++
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.MediaType;
++import org.springframework.security.test.context.support.WithUserDetails;
++import org.springframework.test.web.servlet.ResultActions;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import org.springframework.transaction.annotation.Propagation;
++import org.springframework.transaction.annotation.Transactional;
++import ru.javaops.topjava.AbstractControllerTest;
++import ru.javaops.topjava.common.util.JsonUtil;
++import ru.javaops.topjava.user.UserTestData;
++import ru.javaops.topjava.user.model.Meal;
++import ru.javaops.topjava.user.repository.MealRepository;
++
++import java.time.LocalDateTime;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javaops.topjava.user.MealTestData.*;
++import static ru.javaops.topjava.user.UserTestData.ADMIN_MAIL;
++import static ru.javaops.topjava.user.UserTestData.USER_MAIL;
++import static ru.javaops.topjava.user.util.MealsUtil.createTo;
++import static ru.javaops.topjava.user.util.MealsUtil.getTos;
++import static ru.javaops.topjava.user.web.MealController.REST_URL;
++
++class MealControllerTest extends AbstractControllerTest {
++
++    private static final String REST_URL_SLASH = REST_URL + '/';
++
++    @Autowired
++    private MealRepository mealRepository;
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void get() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL_SLASH + MEAL1_ID))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(MEAL_MATCHER.contentJson(meal1));
++    }
++
++    @Test
++    void getUnauth() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL_SLASH + MEAL1_ID))
++                .andExpect(status().isUnauthorized());
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void getNotFound() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL_SLASH + ADMIN_MEAL_ID))
++                .andDo(print())
++                .andExpect(status().isNotFound());
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void delete() throws Exception {
++        perform(MockMvcRequestBuilders.delete(REST_URL_SLASH + MEAL1_ID))
++                .andExpect(status().isNoContent());
++        assertFalse(mealRepository.get(UserTestData.USER_ID, MEAL1_ID).isPresent());
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void deleteDataConflict() throws Exception {
++        perform(MockMvcRequestBuilders.delete(REST_URL_SLASH + ADMIN_MEAL_ID))
++                .andExpect(status().isConflict());
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void update() throws Exception {
++        Meal updated = getUpdated();
++        perform(MockMvcRequestBuilders.put(REST_URL_SLASH + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(updated)))
++                .andExpect(status().isNoContent());
++
++        MEAL_MATCHER.assertMatch(mealRepository.getExisted(MEAL1_ID), updated);
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void createWithLocation() throws Exception {
++        Meal newMeal = getNew();
++        ResultActions action = perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(newMeal)));
++
++        Meal created = MEAL_MATCHER.readFromJson(action);
++        int newId = created.id();
++        newMeal.setId(newId);
++        MEAL_MATCHER.assertMatch(created, newMeal);
++        MEAL_MATCHER.assertMatch(mealRepository.getExisted(newId), newMeal);
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void getAll() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(MEAL_TO_MATCHER.contentJson(getTos(meals, UserTestData.user.getCaloriesPerDay())));
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void getBetween() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL_SLASH + "filter")
++                .param("startDate", "2020-01-30").param("startTime", "07:00")
++                .param("endDate", "2020-01-31").param("endTime", "11:00"))
++                .andDo(print())
++                .andExpect(status().isOk())
++                .andExpect(MEAL_TO_MATCHER.contentJson(createTo(meal5, true), createTo(meal1, false)));
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void getBetweenAll() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL_SLASH + "filter?startDate=&endTime="))
++                .andExpect(status().isOk())
++                .andExpect(MEAL_TO_MATCHER.contentJson(getTos(meals, UserTestData.user.getCaloriesPerDay())));
++    }
++
++    @Test
++    @WithUserDetails(value = ADMIN_MAIL)
++    void createInvalid() throws Exception {
++        Meal invalid = new Meal(null, null, "Dummy", 200);
++        perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid)))
++                .andDo(print())
++                .andExpect(status().isUnprocessableEntity());
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void updateInvalid() throws Exception {
++        Meal invalid = new Meal(MEAL1_ID, null, null, 6000);
++        perform(MockMvcRequestBuilders.put(REST_URL_SLASH + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid)))
++                .andDo(print())
++                .andExpect(status().isUnprocessableEntity());
++    }
++
++    @Test
++    @WithUserDetails(value = USER_MAIL)
++    void updateHtmlUnsafe() throws Exception {
++        Meal invalid = new Meal(MEAL1_ID, LocalDateTime.now(), "<script>alert(123)</script>", 200);
++        perform(MockMvcRequestBuilders.put(REST_URL_SLASH + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid)))
++                .andDo(print())
++                .andExpect(status().isUnprocessableEntity());
++    }
++
++    @Test
++    @Transactional(propagation = Propagation.NEVER)
++    @WithUserDetails(value = USER_MAIL)
++    void updateDuplicate() throws Exception {
++        Meal invalid = new Meal(MEAL1_ID, meal2.getDateTime(), "Dummy", 200);
++        perform(MockMvcRequestBuilders.put(REST_URL_SLASH + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid)))
++                .andDo(print())
++                .andExpect(status().isConflict());
++    }
++
++    @Test
++    @WithUserDetails(value = ADMIN_MAIL)
++    void createDuplicate() throws Exception {
++        Meal invalid = new Meal(null, adminMeal1.getDateTime(), "Dummy", 200);
++        perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid)))
++                .andDo(print())
++                .andExpect(status().isConflict());
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javaops/topjava/user/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/model/Meal.java b/src/main/java/ru/javaops/topjava/user/model/Meal.java
+new file mode 100644
+--- /dev/null	(date 1745676808039)
++++ b/src/main/java/ru/javaops/topjava/user/model/Meal.java	(date 1745676808039)
+@@ -0,0 +1,62 @@
++package ru.javaops.topjava.user.model;
++
++import com.fasterxml.jackson.annotation.JsonIgnore;
++import io.swagger.v3.oas.annotations.media.Schema;
++import jakarta.persistence.*;
++import jakarta.validation.constraints.NotBlank;
++import jakarta.validation.constraints.NotNull;
++import jakarta.validation.constraints.Size;
++import lombok.*;
++import org.hibernate.validator.constraints.Range;
++import ru.javaops.topjava.common.model.BaseEntity;
++import ru.javaops.topjava.common.validation.NoHtml;
++
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.LocalTime;
++
++@Entity
++@Table(name = "meal", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "date_time"}, name = "meal_unique_user_datetime_idx")})
++@Getter
++@Setter
++@NoArgsConstructor(access = AccessLevel.PROTECTED)
++@ToString(callSuper = true, exclude = {"user"})
++public class Meal extends BaseEntity {
++
++    @Column(name = "date_time", nullable = false)
++    @NotNull
++    private LocalDateTime dateTime;
++
++    @Column(name = "description", nullable = false)
++    @NotBlank
++    @Size(min = 2, max = 120)
++    @NoHtml
++    private String description;
++
++    @Column(name = "calories", nullable = false)
++    @NotNull
++    @Range(min = 10, max = 5000)
++    private Integer calories;
++
++    @ManyToOne(fetch = FetchType.LAZY)
++    @JoinColumn(name = "user_id", nullable = false)
++    @JsonIgnore
++    private User user;
++
++    public Meal(Integer id, LocalDateTime dateTime, String description, int calories) {
++        super(id);
++        this.dateTime = dateTime;
++        this.description = description;
++        this.calories = calories;
++    }
++
++    @Schema(hidden = true)
++    public LocalDate getDate() {
++        return dateTime.toLocalDate();
++    }
++
++    @Schema(hidden = true)
++    public LocalTime getTime() {
++        return dateTime.toLocalTime();
++    }
++}
+Index: src/main/java/ru/javaops/topjava/common/util/Util.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/common/util/Util.java b/src/main/java/ru/javaops/topjava/common/util/Util.java
+new file mode 100644
+--- /dev/null	(date 1745676808039)
++++ b/src/main/java/ru/javaops/topjava/common/util/Util.java	(date 1745676808039)
+@@ -0,0 +1,11 @@
++package ru.javaops.topjava.common.util;
++
++import lombok.experimental.UtilityClass;
++import org.springframework.lang.Nullable;
++
++@UtilityClass
++public class Util {
++    public static <T extends Comparable<T>> boolean isBetweenHalfOpen(T value, @Nullable T start, @Nullable T end) {
++        return (start == null || value.compareTo(start) >= 0) && (end == null || value.compareTo(end) < 0);
++    }
++}
+Index: src/main/java/ru/javaops/topjava/user/util/DateTimeUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/util/DateTimeUtil.java b/src/main/java/ru/javaops/topjava/user/util/DateTimeUtil.java
+new file mode 100644
+--- /dev/null	(date 1745676808059)
++++ b/src/main/java/ru/javaops/topjava/user/util/DateTimeUtil.java	(date 1745676808059)
+@@ -0,0 +1,23 @@
++package ru.javaops.topjava.user.util;
++
++import lombok.experimental.UtilityClass;
++
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.temporal.ChronoUnit;
++
++@UtilityClass
++public class DateTimeUtil {
++
++    // DB doesn't support LocalDate.MIN/MAX
++    private static final LocalDateTime MIN_DATE = LocalDateTime.of(1, 1, 1, 0, 0);
++    private static final LocalDateTime MAX_DATE = LocalDateTime.of(3000, 1, 1, 0, 0);
++
++    public static LocalDateTime atStartOfDayOrMin(LocalDate localDate) {
++        return localDate != null ? localDate.atStartOfDay() : MIN_DATE;
++    }
++
++    public static LocalDateTime atStartOfNextDayOrMax(LocalDate localDate) {
++        return localDate != null ? localDate.plus(1, ChronoUnit.DAYS).atStartOfDay() : MAX_DATE;
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javaops/topjava/user/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/util/MealsUtil.java b/src/main/java/ru/javaops/topjava/user/util/MealsUtil.java
+new file mode 100644
+--- /dev/null	(date 1745676808060)
++++ b/src/main/java/ru/javaops/topjava/user/util/MealsUtil.java	(date 1745676808060)
+@@ -0,0 +1,43 @@
++package ru.javaops.topjava.user.util;
++
++import lombok.experimental.UtilityClass;
++import ru.javaops.topjava.common.util.Util;
++import ru.javaops.topjava.user.model.Meal;
++import ru.javaops.topjava.user.to.MealTo;
++
++import java.time.LocalDate;
++import java.time.LocalTime;
++import java.util.Collection;
++import java.util.List;
++import java.util.Map;
++import java.util.function.Predicate;
++import java.util.stream.Collectors;
++
++@UtilityClass
++public class MealsUtil {
++
++    public static List<MealTo> getTos(Collection<Meal> meals, int caloriesPerDay) {
++        return filterByPredicate(meals, caloriesPerDay, meal -> true);
++    }
++
++    public static List<MealTo> getFilteredTos(Collection<Meal> meals, int caloriesPerDay, LocalTime startTime, LocalTime endTime) {
++        return filterByPredicate(meals, caloriesPerDay, meal -> Util.isBetweenHalfOpen(meal.getTime(), startTime, endTime));
++    }
++
++    public static List<MealTo> filterByPredicate(Collection<Meal> meals, int caloriesPerDay, Predicate<Meal> filter) {
++        Map<LocalDate, Integer> caloriesSumByDate = meals.stream()
++                .collect(
++                        Collectors.groupingBy(Meal::getDate, Collectors.summingInt(Meal::getCalories))
++//                      Collectors.toMap(Meal::getDate, Meal::getCalories, Integer::sum)
++                );
++
++        return meals.stream()
++                .filter(filter)
++                .map(meal -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay))
++                .collect(Collectors.toList());
++    }
++
++    public static MealTo createTo(Meal meal, boolean excess) {
++        return new MealTo(meal.getId(), meal.getDateTime(), meal.getDescription(), meal.getCalories(), excess);
++    }
++}
+Index: src/main/java/ru/javaops/topjava/user/service/MealService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/service/MealService.java b/src/main/java/ru/javaops/topjava/user/service/MealService.java
+new file mode 100644
+--- /dev/null	(date 1745676808041)
++++ b/src/main/java/ru/javaops/topjava/user/service/MealService.java	(date 1745676808041)
+@@ -0,0 +1,21 @@
++package ru.javaops.topjava.user.service;
++
++import lombok.AllArgsConstructor;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import ru.javaops.topjava.user.model.Meal;
++import ru.javaops.topjava.user.repository.MealRepository;
++import ru.javaops.topjava.user.repository.UserRepository;
++
++@Service
++@AllArgsConstructor
++public class MealService {
++    private final MealRepository mealRepository;
++    private final UserRepository userRepository;
++
++    @Transactional
++    public Meal save(int userId, Meal meal) {
++        meal.setUser(userRepository.getExisted(userId));
++        return mealRepository.save(meal);
++    }
++}
+Index: src/test/java/ru/javaops/topjava/user/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javaops/topjava/user/UserTestData.java b/src/test/java/ru/javaops/topjava/user/UserTestData.java
+--- a/src/test/java/ru/javaops/topjava/user/UserTestData.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/test/java/ru/javaops/topjava/user/UserTestData.java	(date 1745676808061)
+@@ -9,8 +9,19 @@
+ import java.util.Date;
+ import java.util.List;
+ 
++import static org.assertj.core.api.Assertions.assertThat;
++import static ru.javaops.topjava.user.MealTestData.*;
++
+ public class UserTestData {
+-    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator(User.class, "registered", "password");
++    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator(User.class, "registered", "meals", "password");
++    public static MatcherFactory.Matcher<User> USER_WITH_MEALS_MATCHER =
++            MatcherFactory.usingAssertions(User.class,
++                    //     No need use ignoringAllOverriddenEquals, see https://assertj.github.io/doc/#breaking-changes
++                    (a, e) -> assertThat(a).usingRecursiveComparison()
++                            .ignoringFields("registered", "meals.user", "password").isEqualTo(e),
++                    (a, e) -> {
++                        throw new UnsupportedOperationException();
++                    });
+ 
+     public static final int USER_ID = 1;
+     public static final int ADMIN_ID = 2;
+@@ -20,16 +31,21 @@
+     public static final String ADMIN_MAIL = "admin@gmail.com";
+     public static final String GUEST_MAIL = "guest@gmail.com";
+ 
+-    public static final User user = new User(USER_ID, "User", USER_MAIL, "password", Role.USER);
+-    public static final User admin = new User(ADMIN_ID, "Admin", ADMIN_MAIL, "admin", Role.ADMIN, Role.USER);
+-    public static final User guest = new User(GUEST_ID, "Guest", GUEST_MAIL, "guest");
++    public static final User user = new User(USER_ID, "User", USER_MAIL, "password", 2005, Role.USER);
++    public static final User admin = new User(ADMIN_ID, "Admin", ADMIN_MAIL, "admin", 1900, Role.ADMIN, Role.USER);
++    public static final User guest = new User(GUEST_ID, "Guest", GUEST_MAIL, "guest", 2000);
++
++    static {
++        user.setMeals(meals);
++        admin.setMeals(List.of(adminMeal2, adminMeal1));
++    }
+ 
+     public static User getNew() {
+-        return new User(null, "New", "new@gmail.com", "newPass", false, new Date(), Collections.singleton(Role.USER));
++        return new User(null, "New", "new@gmail.com", "newPass", 1555, false, new Date(), Collections.singleton(Role.USER));
+     }
+ 
+     public static User getUpdated() {
+-        return new User(USER_ID, "UpdatedName", USER_MAIL, "newPass", false, new Date(), List.of(Role.ADMIN));
++        return new User(USER_ID, "UpdatedName", USER_MAIL, "newPass", 330, false, new Date(), List.of(Role.ADMIN));
+     }
+ 
+     public static String jsonWithPassword(User user, String passw) {
+Index: src/main/java/ru/javaops/topjava/user/UsersUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/UsersUtil.java b/src/main/java/ru/javaops/topjava/user/util/UsersUtil.java
+rename from src/main/java/ru/javaops/topjava/user/UsersUtil.java
+rename to src/main/java/ru/javaops/topjava/user/util/UsersUtil.java
+--- a/src/main/java/ru/javaops/topjava/user/UsersUtil.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/util/UsersUtil.java	(date 1745676808060)
+@@ -1,4 +1,4 @@
+-package ru.javaops.topjava.user;
++package ru.javaops.topjava.user.util;
+ 
+ import lombok.experimental.UtilityClass;
+ import ru.javaops.topjava.user.model.Role;
+@@ -7,14 +7,16 @@
+ 
+ @UtilityClass
+ public class UsersUtil {
++    public static final int DEFAULT_CALORIES_PER_DAY = 2000;
+ 
+     public static User createNewFromTo(UserTo userTo) {
+-        return new User(null, userTo.getName(), userTo.getEmail().toLowerCase(), userTo.getPassword(), Role.USER);
++        return new User(null, userTo.getName(), userTo.getEmail().toLowerCase(), userTo.getPassword(), userTo.getCaloriesPerDay(), Role.USER);
+     }
+ 
+     public static User updateFromTo(User user, UserTo userTo) {
+         user.setName(userTo.getName());
+         user.setEmail(userTo.getEmail().toLowerCase());
++        user.setCaloriesPerDay(userTo.getCaloriesPerDay());
+         user.setPassword(userTo.getPassword());
+         return user;
+     }
+Index: src/main/java/ru/javaops/topjava/user/repository/UserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/repository/UserRepository.java b/src/main/java/ru/javaops/topjava/user/repository/UserRepository.java
+--- a/src/main/java/ru/javaops/topjava/user/repository/UserRepository.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/repository/UserRepository.java	(date 1745676808040)
+@@ -15,6 +15,10 @@
+     @Query("SELECT u FROM User u WHERE LOWER(u.email) = LOWER(:email)")
+     Optional<User> findByEmailIgnoreCase(String email);
+ 
++    //     https://stackoverflow.com/a/46013654/548473
++    @Query("SELECT u FROM User u LEFT JOIN FETCH u.meals WHERE u.id=?1")
++    Optional<User> getWithMeals(int id);
++
+     @Transactional
+     default User prepareAndSave(User user) {
+         user.setPassword(PASSWORD_ENCODER.encode(user.getPassword()));
+Index: src/main/java/ru/javaops/topjava/user/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/to/UserTo.java b/src/main/java/ru/javaops/topjava/user/to/UserTo.java
+--- a/src/main/java/ru/javaops/topjava/user/to/UserTo.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/to/UserTo.java	(date 1745676808041)
+@@ -2,9 +2,11 @@
+ 
+ import jakarta.validation.constraints.Email;
+ import jakarta.validation.constraints.NotBlank;
++import jakarta.validation.constraints.NotNull;
+ import jakarta.validation.constraints.Size;
+ import lombok.EqualsAndHashCode;
+ import lombok.Value;
++import org.hibernate.validator.constraints.Range;
+ import ru.javaops.topjava.common.HasIdAndEmail;
+ import ru.javaops.topjava.common.to.NamedTo;
+ import ru.javaops.topjava.common.validation.NoHtml;
+@@ -22,10 +24,15 @@
+     @Size(min = 5, max = 32)
+     String password;
+ 
+-    public UserTo(Integer id, String name, String email, String password) {
++    @Range(min = 10, max = 10000)
++    @NotNull
++    Integer caloriesPerDay;
++
++    public UserTo(Integer id, String name, String email, String password, int caloriesPerDay) {
+         super(id, name);
+         this.email = email;
+         this.password = password;
++        this.caloriesPerDay = caloriesPerDay;
+     }
+ 
+     @Override
+Index: src/main/java/ru/javaops/topjava/user/web/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/web/AbstractUserController.java b/src/main/java/ru/javaops/topjava/user/web/AbstractUserController.java
+--- a/src/main/java/ru/javaops/topjava/user/web/AbstractUserController.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/web/AbstractUserController.java	(date 1745676808060)
+@@ -2,6 +2,7 @@
+ 
+ import org.slf4j.Logger;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.ResponseEntity;
+ import org.springframework.web.bind.WebDataBinder;
+ import org.springframework.web.bind.annotation.InitBinder;
+ import ru.javaops.topjava.user.model.User;
+@@ -32,4 +33,9 @@
+         log.info("delete {}", id);
+         repository.deleteExisted(id);
+     }
++
++    public ResponseEntity<User> getWithMeals(int id) {
++        log.info("getWithMeals {}", id);
++        return ResponseEntity.of(repository.getWithMeals(id));
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javaops/topjava/user/to/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/to/MealTo.java b/src/main/java/ru/javaops/topjava/user/to/MealTo.java
+new file mode 100644
+--- /dev/null	(date 1745676808041)
++++ b/src/main/java/ru/javaops/topjava/user/to/MealTo.java	(date 1745676808041)
+@@ -0,0 +1,28 @@
++package ru.javaops.topjava.user.to;
++
++import lombok.EqualsAndHashCode;
++import lombok.Value;
++import ru.javaops.topjava.common.to.BaseTo;
++
++import java.time.LocalDateTime;
++
++@Value
++@EqualsAndHashCode(callSuper = true)
++public class MealTo extends BaseTo {
++
++    LocalDateTime dateTime;
++
++    String description;
++
++    int calories;
++
++    boolean excess;
++
++    public MealTo(Integer id, LocalDateTime dateTime, String description, int calories, boolean excess) {
++        super(id);
++        this.dateTime = dateTime;
++        this.description = description;
++        this.calories = calories;
++        this.excess = excess;
++    }
++}
+Index: src/main/java/ru/javaops/topjava/user/web/MealController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/web/MealController.java b/src/main/java/ru/javaops/topjava/user/web/MealController.java
+new file mode 100644
+--- /dev/null	(date 1745676808060)
++++ b/src/main/java/ru/javaops/topjava/user/web/MealController.java	(date 1745676808060)
+@@ -0,0 +1,98 @@
++package ru.javaops.topjava.user.web;
++
++import io.swagger.v3.oas.annotations.media.Schema;
++import jakarta.validation.Valid;
++import lombok.AllArgsConstructor;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.format.annotation.DateTimeFormat;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.lang.Nullable;
++import org.springframework.security.core.annotation.AuthenticationPrincipal;
++import org.springframework.web.bind.annotation.*;
++import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
++import ru.javaops.topjava.app.AuthUser;
++import ru.javaops.topjava.user.model.Meal;
++import ru.javaops.topjava.user.repository.MealRepository;
++import ru.javaops.topjava.user.service.MealService;
++import ru.javaops.topjava.user.to.MealTo;
++import ru.javaops.topjava.user.util.MealsUtil;
++
++import java.net.URI;
++import java.time.LocalDate;
++import java.time.LocalTime;
++import java.util.List;
++
++import static ru.javaops.topjava.common.validation.ValidationUtil.assureIdConsistent;
++import static ru.javaops.topjava.common.validation.ValidationUtil.checkIsNew;
++import static ru.javaops.topjava.user.util.DateTimeUtil.atStartOfDayOrMin;
++import static ru.javaops.topjava.user.util.DateTimeUtil.atStartOfNextDayOrMax;
++
++@RestController
++@RequestMapping(value = MealController.REST_URL, produces = MediaType.APPLICATION_JSON_VALUE)
++@Slf4j
++@AllArgsConstructor
++public class MealController {
++    static final String REST_URL = "/api/profile/meals";
++
++    private final MealRepository repository;
++    private final MealService service;
++
++    @GetMapping("/{id}")
++    public ResponseEntity<Meal> get(@AuthenticationPrincipal AuthUser authUser, @PathVariable int id) {
++        log.info("get meal {} for user {}", id, authUser.id());
++        return ResponseEntity.of(repository.get(authUser.id(), id));
++    }
++
++    @DeleteMapping("/{id}")
++    @ResponseStatus(HttpStatus.NO_CONTENT)
++    public void delete(@AuthenticationPrincipal AuthUser authUser, @PathVariable int id) {
++        log.info("delete {} for user {}", id, authUser.id());
++        Meal meal = repository.getBelonged(authUser.id(), id);
++        repository.delete(meal);
++    }
++
++    @GetMapping
++    public List<MealTo> getAll(@AuthenticationPrincipal AuthUser authUser) {
++        log.info("getAll for user {}", authUser.id());
++        return MealsUtil.getTos(repository.getAll(authUser.id()), authUser.getUser().getCaloriesPerDay());
++    }
++
++
++    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
++    @ResponseStatus(HttpStatus.NO_CONTENT)
++    public void update(@AuthenticationPrincipal AuthUser authUser, @Valid @RequestBody Meal meal, @PathVariable int id) {
++        int userId = authUser.id();
++        log.info("update {} for user {}", meal, userId);
++        assureIdConsistent(meal, id);
++        repository.getBelonged(userId, id);
++        service.save(userId, meal);
++    }
++
++    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
++    public ResponseEntity<Meal> createWithLocation(@AuthenticationPrincipal AuthUser authUser, @Valid @RequestBody Meal meal) {
++        int userId = authUser.id();
++        log.info("create {} for user {}", meal, userId);
++        checkIsNew(meal);
++        Meal created = service.save(userId, meal);
++        URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
++                .path(REST_URL + "/{id}")
++                .buildAndExpand(created.getId()).toUri();
++        return ResponseEntity.created(uriOfNewResource).body(created);
++    }
++
++
++    @GetMapping("/filter")
++    public List<MealTo> getBetween(@AuthenticationPrincipal AuthUser authUser,
++                                   @RequestParam @Nullable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
++                                   @RequestParam @Nullable @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "LocalTime") LocalTime startTime,
++                                   @RequestParam @Nullable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
++                                   @RequestParam @Nullable @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) @Schema(type = "LocalTime") LocalTime endTime) {
++
++        int userId = authUser.id();
++        log.info("getBetween dates({} - {}) time({} - {}) for user {}", startDate, endDate, startTime, endTime, userId);
++        List<Meal> mealsDateFiltered = repository.getBetweenHalfOpen(userId, atStartOfDayOrMin(startDate), atStartOfNextDayOrMax(endDate));
++        return MealsUtil.getFilteredTos(mealsDateFiltered, authUser.getUser().getCaloriesPerDay(), startTime, endTime);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javaops/topjava/user/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/model/User.java b/src/main/java/ru/javaops/topjava/user/model/User.java
+--- a/src/main/java/ru/javaops/topjava/user/model/User.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/model/User.java	(date 1745676808040)
+@@ -1,6 +1,7 @@
+ package ru.javaops.topjava.user.model;
+ 
+ import com.fasterxml.jackson.annotation.JsonProperty;
++import io.swagger.v3.oas.annotations.media.Schema;
+ import jakarta.persistence.*;
+ import jakarta.validation.constraints.Email;
+ import jakarta.validation.constraints.NotBlank;
+@@ -10,13 +11,17 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
+-import org.springframework.lang.NonNull;
++import org.hibernate.annotations.OnDelete;
++import org.hibernate.annotations.OnDeleteAction;
++import org.hibernate.validator.constraints.Range;
+ import ru.javaops.topjava.common.HasIdAndEmail;
+ import ru.javaops.topjava.common.model.NamedEntity;
+ import ru.javaops.topjava.common.validation.NoHtml;
+ 
+ import java.util.*;
+ 
++import static ru.javaops.topjava.user.util.UsersUtil.DEFAULT_CALORIES_PER_DAY;
++
+ @Entity
+ @Table(name = "users")
+ @Getter
+@@ -55,18 +60,30 @@
+     @ElementCollection(fetch = FetchType.EAGER)
+     private Set<Role> roles = EnumSet.noneOf(Role.class);
+ 
++    @Column(name = "calories_per_day", nullable = false, columnDefinition = "int default 2000")
++    @Range(min = 10, max = 10000)
++    private int caloriesPerDay = DEFAULT_CALORIES_PER_DAY;
++
++    @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
++    @OrderBy("dateTime DESC")
++    @OnDelete(action = OnDeleteAction.CASCADE) //https://stackoverflow.com/a/44988100/548473
++    @Schema(hidden = true)
++    private List<Meal> meals;
++
+     public User(User u) {
+-        this(u.id, u.name, u.email, u.password, u.enabled, u.registered, u.roles);
++        this(u.id, u.name, u.email, u.password, u.caloriesPerDay, u.enabled, u.registered, u.roles);
++        this.meals = List.copyOf(u.meals);
+     }
+ 
+-    public User(Integer id, String name, String email, String password, Role... roles) {
+-        this(id, name, email, password, true, new Date(), Arrays.asList(roles));
++    public User(Integer id, String name, String email, String password, int caloriesPerDay, Role... roles) {
++        this(id, name, email, password, caloriesPerDay, true, new Date(), Arrays.asList(roles));
+     }
+ 
+-    public User(Integer id, String name, String email, String password, boolean enabled, Date registered, @NonNull Collection<Role> roles) {
++    public User(Integer id, String name, String email, String password, int caloriesPerDay, boolean enabled, Date registered, Collection<Role> roles) {
+         super(id, name);
+         this.email = email;
+         this.password = password;
++        this.caloriesPerDay = caloriesPerDay;
+         this.enabled = enabled;
+         this.registered = registered;
+         setRoles(roles);
+Index: src/main/resources/data.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/data.sql b/src/main/resources/data.sql
+--- a/src/main/resources/data.sql	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/resources/data.sql	(date 1745676808061)
+@@ -1,9 +1,20 @@
+-INSERT INTO USERS (name, email, password)
+-VALUES ('User', 'user@yandex.ru', '{noop}password'),
+-       ('Admin', 'admin@gmail.com', '{noop}admin'),
+-       ('Guest', 'guest@gmail.com', '{noop}guest');
++INSERT INTO USERS (name, email, password, calories_per_day)
++VALUES ('User', 'user@yandex.ru', '{noop}password', 2005),
++       ('Admin', 'admin@gmail.com', '{noop}admin', 1900),
++       ('Guest', 'guest@gmail.com', '{noop}guest', 2000);
+ 
+ INSERT INTO USER_ROLE (role, user_id)
+ VALUES ('USER', 1),
+        ('ADMIN', 2),
+-       ('USER', 2);
+\ No newline at end of file
++       ('USER', 2);
++
++INSERT INTO MEAL (date_time, description, calories, user_id)
++VALUES ('2020-01-30 10:00:00', 'Завтрак', 500, 1),
++       ('2020-01-30 13:00:00', 'Обед', 1000, 1),
++       ('2020-01-30 20:00:00', 'Ужин', 500, 1),
++       ('2020-01-31 0:00:00', 'Еда на граничное значение', 100, 1),
++       ('2020-01-31 10:00:00', 'Завтрак', 500, 1),
++       ('2020-01-31 13:00:00', 'Обед', 1000, 1),
++       ('2020-01-31 20:00:00', 'Ужин', 510, 1),
++       ('2020-01-31 14:00:00', 'Админ ланч', 510, 2),
++       ('2020-01-31 21:00:00', 'Админ ужин', 1500, 2);
+\ No newline at end of file
+Index: src/test/java/ru/javaops/topjava/user/MealTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javaops/topjava/user/MealTestData.java b/src/test/java/ru/javaops/topjava/user/MealTestData.java
+new file mode 100644
+--- /dev/null	(date 1745676808061)
++++ b/src/test/java/ru/javaops/topjava/user/MealTestData.java	(date 1745676808061)
+@@ -0,0 +1,36 @@
++package ru.javaops.topjava.user;
++
++import ru.javaops.topjava.MatcherFactory;
++import ru.javaops.topjava.user.model.Meal;
++import ru.javaops.topjava.user.to.MealTo;
++
++import java.time.Month;
++import java.time.temporal.ChronoUnit;
++import java.util.List;
++
++import static java.time.LocalDateTime.of;
++
++public class MealTestData {
++    public static final MatcherFactory.Matcher<Meal> MEAL_MATCHER = MatcherFactory.usingIgnoringFieldsComparator(Meal.class, "user");
++    public static final int MEAL1_ID = 1;
++    public static final int ADMIN_MEAL_ID = 8;
++    public static final Meal meal1 = new Meal(MEAL1_ID, of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500);
++    public static final Meal meal2 = new Meal(MEAL1_ID + 1, of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000);
++    public static final Meal meal3 = new Meal(MEAL1_ID + 2, of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500);
++    public static final Meal meal4 = new Meal(MEAL1_ID + 3, of(2020, Month.JANUARY, 31, 0, 0), "Еда на граничное значение", 100);
++    public static final Meal meal5 = new Meal(MEAL1_ID + 4, of(2020, Month.JANUARY, 31, 10, 0), "Завтрак", 500);
++    public static final Meal meal6 = new Meal(MEAL1_ID + 5, of(2020, Month.JANUARY, 31, 13, 0), "Обед", 1000);
++    public static final Meal meal7 = new Meal(MEAL1_ID + 6, of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 510);
++    public static final List<Meal> meals = List.of(meal7, meal6, meal5, meal4, meal3, meal2, meal1);
++    public static final Meal adminMeal1 = new Meal(ADMIN_MEAL_ID, of(2020, Month.JANUARY, 31, 14, 0), "Админ ланч", 510);
++    public static final Meal adminMeal2 = new Meal(ADMIN_MEAL_ID + 1, of(2020, Month.JANUARY, 31, 21, 0), "Админ ужин", 1500);
++    public static MatcherFactory.Matcher<MealTo> MEAL_TO_MATCHER = MatcherFactory.usingEqualsComparator(MealTo.class);
++
++    public static Meal getNew() {
++        return new Meal(null, of(2020, Month.FEBRUARY, 1, 18, 0), "Созданный ужин", 300);
++    }
++
++    public static Meal getUpdated() {
++        return new Meal(MEAL1_ID, meal1.getDateTime().plus(2, ChronoUnit.MINUTES), "Обновленный завтрак", 200);
++    }
++}
+Index: src/main/java/ru/javaops/topjava/user/web/AdminUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/web/AdminUserController.java b/src/main/java/ru/javaops/topjava/user/web/AdminUserController.java
+--- a/src/main/java/ru/javaops/topjava/user/web/AdminUserController.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/web/AdminUserController.java	(date 1745676808060)
+@@ -28,6 +28,11 @@
+         return super.get(id);
+     }
+ 
++    @GetMapping("/{id}/with-meals")
++    public ResponseEntity<User> getWithMeals(@PathVariable int id) {
++        return super.getWithMeals(id);
++    }
++
+     @Override
+     @DeleteMapping("/{id}")
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+Index: src/main/java/ru/javaops/topjava/user/web/ProfileController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javaops/topjava/user/web/ProfileController.java b/src/main/java/ru/javaops/topjava/user/web/ProfileController.java
+--- a/src/main/java/ru/javaops/topjava/user/web/ProfileController.java	(revision 2a7bffdb4645716a05b82adc7d6afa0d1e7b3ff3)
++++ b/src/main/java/ru/javaops/topjava/user/web/ProfileController.java	(date 1745676808061)
+@@ -10,9 +10,9 @@
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+ import ru.javaops.topjava.app.AuthUser;
+-import ru.javaops.topjava.user.UsersUtil;
+ import ru.javaops.topjava.user.model.User;
+ import ru.javaops.topjava.user.to.UserTo;
++import ru.javaops.topjava.user.util.UsersUtil;
+ 
+ import java.net.URI;
+ 
+@@ -58,4 +58,9 @@
+         User user = authUser.getUser();
+         repository.prepareAndSave(UsersUtil.updateFromTo(user, userTo));
+     }
++
++    @GetMapping("/with-meals")
++    public ResponseEntity<User> getWithMeals(@AuthenticationPrincipal AuthUser authUser) {
++        return super.getWithMeals(authUser.id());
++    }
+ }
+\ No newline at end of file

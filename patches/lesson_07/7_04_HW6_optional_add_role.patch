@@ -1,0 +1,133 @@
+Subject: [PATCH] 7_04_HW6_optional_add_role
+---
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(revision 4ed03f227a926e83179814d3aa0dfb47b9bcb82a)
++++ b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(date 1679515507280)
+@@ -17,9 +17,9 @@
+ public class DataJpaUserServiceTest extends AbstractUserServiceTest {
+     @Test
+     public void getWithMeals() {
+-        User user = service.getWithMeals(USER_ID);
+-        USER_MATCHER.assertMatch(user, UserTestData.user);
+-        MEAL_MATCHER.assertMatch(user.getMeals(), MealTestData.meals);
++        User admin = service.getWithMeals(ADMIN_ID);
++        USER_MATCHER.assertMatch(admin, UserTestData.admin);
++        MEAL_MATCHER.assertMatch(admin.getMeals(), MealTestData.adminMeal2, MealTestData.adminMeal1);
+     }
+ 
+     @Test
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 4ed03f227a926e83179814d3aa0dfb47b9bcb82a)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1679515507267)
+@@ -22,7 +22,7 @@
+ @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+ @NamedQueries({
+         @NamedQuery(name = User.DELETE, query = "DELETE FROM User u WHERE u.id=:id"),
+-        @NamedQuery(name = User.BY_EMAIL, query = "SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email=?1"),
++        @NamedQuery(name = User.BY_EMAIL, query = "SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email=?1"),
+         @NamedQuery(name = User.ALL_SORTED, query = "SELECT u FROM User u ORDER BY u.name, u.email"),
+ })
+ @Entity
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 4ed03f227a926e83179814d3aa0dfb47b9bcb82a)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1679515507293)
+@@ -7,7 +7,6 @@
+ import org.springframework.cache.CacheManager;
+ import org.springframework.context.annotation.Lazy;
+ import org.springframework.dao.DataAccessException;
+-import ru.javawebinar.topjava.UserTestData;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.JpaUtil;
+@@ -70,8 +69,8 @@
+ 
+     @Test
+     public void get() {
+-        User user = service.get(USER_ID);
+-        USER_MATCHER.assertMatch(user, UserTestData.user);
++        User user = service.get(ADMIN_ID);
++        USER_MATCHER.assertMatch(user, admin);
+     }
+ 
+     @Test
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/UserTestData.java b/src/test/java/ru/javawebinar/topjava/UserTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/UserTestData.java	(revision 4ed03f227a926e83179814d3aa0dfb47b9bcb82a)
++++ b/src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1679515507298)
+@@ -9,7 +9,7 @@
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class UserTestData {
+-    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator("registered", "roles", "meals");
++    public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator("registered", "meals");
+ 
+     public static final int USER_ID = START_SEQ;
+     public static final int ADMIN_ID = START_SEQ + 1;
+@@ -17,7 +17,7 @@
+     public static final int NOT_FOUND = 10;
+ 
+     public static final User user = new User(USER_ID, "User", "user@yandex.ru", "password", Role.USER);
+-    public static final User admin = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", Role.ADMIN);
++    public static final User admin = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", Role.ADMIN, Role.USER);
+     public static final User guest = new User(GUEST_ID, "Guest", "guest@gmail.com", "guest");
+ 
+     public static User getNew() {
+Index: src/main/resources/db/populateDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/populateDB.sql b/src/main/resources/db/populateDB.sql
+--- a/src/main/resources/db/populateDB.sql	(revision 4ed03f227a926e83179814d3aa0dfb47b9bcb82a)
++++ b/src/main/resources/db/populateDB.sql	(date 1679515507275)
+@@ -10,7 +10,8 @@
+ 
+ INSERT INTO user_role (role, user_id)
+ VALUES ('USER', 100000),
+-       ('ADMIN', 100001);
++       ('ADMIN', 100001),
++       ('USER', 100001);
+ 
+ INSERT INTO meal (date_time, description, calories, user_id)
+ VALUES ('2020-01-30 10:00:00', 'Завтрак', 500, 100000),
+Index: src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java	(revision 4ed03f227a926e83179814d3aa0dfb47b9bcb82a)
++++ b/src/test/java/ru/javawebinar/topjava/service/jdbc/JdbcUserServiceTest.java	(date 1679515507287)
+@@ -1,10 +1,12 @@
+ package ru.javawebinar.topjava.service.jdbc;
+ 
++import org.junit.Ignore;
+ import org.springframework.test.context.ActiveProfiles;
+ import ru.javawebinar.topjava.service.AbstractUserServiceTest;
+ 
+ import static ru.javawebinar.topjava.Profiles.JDBC;
+ 
+ @ActiveProfiles(JDBC)
++@Ignore
+ public class JdbcUserServiceTest extends AbstractUserServiceTest {
+ }
+\ No newline at end of file

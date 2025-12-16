@@ -1,0 +1,350 @@
+Subject: [PATCH] 9_12_spring_security_test
+---
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/pom.xml	(date 1701877180335)
+@@ -314,6 +314,13 @@
+             <artifactId>spring-test</artifactId>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.springframework.security</groupId>
++            <artifactId>spring-security-test</artifactId>
++            <version>${spring.security.version}</version>
++            <scope>test</scope>
++        </dependency>
++
+         <dependency>
+             <groupId>org.assertj</groupId>
+             <artifactId>assertj-core</artifactId>
+Index: src/test/java/ru/javawebinar/topjava/SpringMain.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/SpringMain.java b/src/test/java/ru/javawebinar/topjava/SpringMain.java
+--- a/src/test/java/ru/javawebinar/topjava/SpringMain.java	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/src/test/java/ru/javawebinar/topjava/SpringMain.java	(date 1701877180316)
+@@ -14,6 +14,9 @@
+ import java.util.Arrays;
+ import java.util.List;
+ 
++import static ru.javawebinar.topjava.TestUtil.mockAuthorize;
++import static ru.javawebinar.topjava.UserTestData.user;
++
+ public class SpringMain {
+     public static void main(String[] args) {
+         // java 7 automatic resource management (ARM)
+@@ -23,6 +26,8 @@
+             adminUserController.create(new User(null, "userName", "email@mail.ru", "password", Role.ADMIN));
+             System.out.println();
+ 
++            mockAuthorize(user);
++
+             MealRestController mealController = appCtx.getBean(MealRestController.class);
+             List<MealTo> filteredMealsWithExcess =
+                     mealController.getBetween(
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1701877180307)
+@@ -17,6 +17,9 @@
+ 
+ import javax.annotation.PostConstruct;
+ 
++import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
++
++
+ @SpringJUnitWebConfig(locations = {
+         "classpath:spring/spring-app.xml",
+         "classpath:spring/spring-mvc.xml",
+@@ -52,6 +55,7 @@
+         mockMvc = MockMvcBuilders
+                 .webAppContextSetup(webApplicationContext)
+                 .addFilter(CHARACTER_ENCODING_FILTER)
++                .apply(springSecurity())
+                 .build();
+     }
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1701877370046)
+@@ -1,18 +1,22 @@
+ package ru.javawebinar.topjava.web;
+ 
++import org.junit.jupiter.api.Disabled;
+ import org.junit.jupiter.api.Test;
+ 
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+ import static ru.javawebinar.topjava.MealTestData.meals;
++import static ru.javawebinar.topjava.TestUtil.userAuth;
++import static ru.javawebinar.topjava.UserTestData.admin;
+ import static ru.javawebinar.topjava.util.MealsUtil.getTos;
+ 
+ class RootControllerTest extends AbstractControllerTest {
+ 
+     @Test
+     void getUsers() throws Exception {
+-        perform(get("/users"))
++        perform(get("/users")
++                .with(userAuth(admin)))
+                 .andDo(print())
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("users"))
+@@ -20,6 +24,15 @@
+     }
+ 
+     @Test
++    void unAuth() throws Exception {
++        perform(get("/users"))
++                .andDo(print())
++                .andExpect(status().is3xxRedirection())
++                .andExpect(redirectedUrl("http://localhost/login"));
++    }
++
++    @Test
++    @Disabled
+     void getMeals() throws Exception {
+         perform(get("/meals"))
+                 .andDo(print())
+Index: src/test/java/ru/javawebinar/topjava/TestUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/TestUtil.java b/src/test/java/ru/javawebinar/topjava/TestUtil.java
+new file mode 100644
+--- /dev/null	(date 1701877180320)
++++ b/src/test/java/ru/javawebinar/topjava/TestUtil.java	(date 1701877180320)
+@@ -0,0 +1,23 @@
++package ru.javawebinar.topjava;
++
++import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
++import org.springframework.test.web.servlet.request.RequestPostProcessor;
++import ru.javawebinar.topjava.model.User;
++
++public class TestUtil {
++
++    public static void mockAuthorize(User user) {
++        SecurityContextHolder.getContext().setAuthentication(
++                new UsernamePasswordAuthenticationToken(new AuthorizedUser(user), null, user.getRoles()));
++    }
++
++    public static RequestPostProcessor userHttpBasic(User user) {
++        return SecurityMockMvcRequestPostProcessors.httpBasic(user.getEmail(), user.getPassword());
++    }
++
++    public static RequestPostProcessor userAuth(User user) {
++        return SecurityMockMvcRequestPostProcessors.authentication(new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword()));
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1701877180300)
+@@ -14,6 +14,7 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ import static ru.javawebinar.topjava.web.user.ProfileRestController.REST_URL;
+ 
+@@ -24,15 +25,23 @@
+ 
+     @Test
+     void get() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL))
++        perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(USER_MATCHER.contentJson(user));
+     }
+ 
++    @Test
++    void getUnAuth() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isUnauthorized());
++    }
++
+     @Test
+     void delete() throws Exception {
+-        perform(MockMvcRequestBuilders.delete(REST_URL))
++        perform(MockMvcRequestBuilders.delete(REST_URL)
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isNoContent());
+         USER_MATCHER.assertMatch(userService.getAll(), admin, guest);
+     }
+@@ -41,6 +50,7 @@
+     void update() throws Exception {
+         UserTo updatedTo = new UserTo(null, "newName", "user@yandex.ru", "newPassword", 1500);
+         perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(user))
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+@@ -51,7 +61,8 @@
+     @Test
+     void getWithMeals() throws Exception {
+         assumeDataJpa();
+-        perform(MockMvcRequestBuilders.get(REST_URL + "/with-meals"))
++        perform(MockMvcRequestBuilders.get(REST_URL + "/with-meals")
++                .with(userHttpBasic(user)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1701877370042)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
+ 
++import org.junit.jupiter.api.Disabled;
+ import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.MediaType;
+@@ -22,6 +23,7 @@
+ import static ru.javawebinar.topjava.util.MealsUtil.createTo;
+ import static ru.javawebinar.topjava.util.MealsUtil.getTos;
+ 
++@Disabled
+ class MealRestControllerTest extends AbstractControllerTest {
+ 
+     private static final String REST_URL = MealRestController.REST_URL + '/';
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 76217a5450036e8dece765441e9625265fe0223a)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1701877180293)
+@@ -16,6 +16,7 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ class AdminRestControllerTest extends AbstractControllerTest {
+@@ -27,7 +28,8 @@
+ 
+     @Test
+     void get() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID))
++        perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID)
++                .with(userHttpBasic(admin)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 // https://jira.spring.io/browse/SPR-14472
+@@ -37,7 +39,8 @@
+ 
+     @Test
+     void getByEmail() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL + "by-email?email=" + user.getEmail()))
++        perform(MockMvcRequestBuilders.get(REST_URL + "by-email?email=" + user.getEmail())
++                .with(userHttpBasic(admin)))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(USER_MATCHER.contentJson(user));
+@@ -45,17 +48,32 @@
+ 
+     @Test
+     void delete() throws Exception {
+-        perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID))
++        perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID)
++                .with(userHttpBasic(admin)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+         assertThrows(NotFoundException.class, () -> userService.get(USER_ID));
+     }
+ 
++    @Test
++    void getUnAuth() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL))
++                .andExpect(status().isUnauthorized());
++    }
++
++    @Test
++    void getForbidden() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(user)))
++                .andExpect(status().isForbidden());
++    }
++
+     @Test
+     void update() throws Exception {
+         User updated = getUpdated();
+         perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
+                 .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin))
+                 .content(JsonUtil.writeValue(updated)))
+                 .andExpect(status().isNoContent());
+ 
+@@ -67,6 +85,7 @@
+         User newUser = getNew();
+         ResultActions action = perform(MockMvcRequestBuilders.post(REST_URL)
+                 .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin))
+                 .content(JsonUtil.writeValue(newUser)))
+                 .andExpect(status().isCreated());
+ 
+@@ -79,7 +98,8 @@
+ 
+     @Test
+     void getAll() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL))
++        perform(MockMvcRequestBuilders.get(REST_URL)
++                .with(userHttpBasic(admin)))
+                 .andExpect(status().isOk())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(USER_MATCHER.contentJson(admin, guest, user));
+@@ -88,7 +108,8 @@
+     @Test
+     void getWithMeals() throws Exception {
+         assumeDataJpa();
+-        perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID + "/with-meals"))
++        perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID + "/with-meals")
++                .with(userHttpBasic(admin)))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+@@ -99,7 +120,8 @@
+     void enable() throws Exception {
+         perform(MockMvcRequestBuilders.patch(REST_URL + USER_ID)
+                 .param("enabled", "false")
+-                .contentType(MediaType.APPLICATION_JSON))
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin)))
+                 .andDo(print())
+                 .andExpect(status().isNoContent());
+ 

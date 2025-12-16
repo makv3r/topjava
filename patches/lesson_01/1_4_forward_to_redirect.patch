@@ -1,0 +1,16 @@
+Subject: [PATCH] 1_4_forward_to_redirect
+---
+Index: src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
++++ b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision 2474c9452e2892d976130138de336101b5b0622a)
+@@ -11,6 +11,7 @@
+ 
+     @Override
+     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        request.getRequestDispatcher("/users.jsp").forward(request, response);
++//        request.getRequestDispatcher("/users.jsp").forward(request, response);
++        response.sendRedirect("users.jsp");
+     }
+ }

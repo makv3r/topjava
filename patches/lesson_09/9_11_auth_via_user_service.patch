@@ -1,0 +1,317 @@
+Subject: [PATCH] 9_11_auth_via_user_service
+---
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1680732930158)
+@@ -39,7 +39,7 @@
+ 
+     @Test
+     void update() throws Exception {
+-        UserTo updatedTo = new UserTo(null, "newName", "user@yandex.ru", "newPassword");
++        UserTo updatedTo = new UserTo(null, "newName", "user@yandex.ru", "newPassword", 1500);
+         perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/UserTo.java b/src/main/java/ru/javawebinar/topjava/to/UserTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1680733071365)
+@@ -1,10 +1,18 @@
+ package ru.javawebinar.topjava.to;
+ 
++import org.hibernate.validator.constraints.Range;
++import ru.javawebinar.topjava.util.UsersUtil;
++
+ import javax.validation.constraints.Email;
+ import javax.validation.constraints.NotBlank;
++import javax.validation.constraints.NotNull;
+ import javax.validation.constraints.Size;
++import java.io.Serial;
++import java.io.Serializable;
+ 
+-public class UserTo extends BaseTo {
++public class UserTo extends BaseTo implements Serializable {
++    @Serial
++    private static final long serialVersionUID = 1L;
+ 
+     @NotBlank
+     @Size(min = 2, max = 100)
+@@ -19,14 +27,19 @@
+     @Size(min = 5, max = 32, message = "length must be between 5 and 32 characters")
+     private String password;
+ 
++    @Range(min = 10, max = 10000)
++    @NotNull
++    private Integer caloriesPerDay = UsersUtil.DEFAULT_CALORIES_PER_DAY;
++
+     public UserTo() {
+     }
+ 
+-    public UserTo(Integer id, String name, String email, String password) {
++    public UserTo(Integer id, String name, String email, String password, int caloriesPerDay) {
+         super(id);
+         this.name = name;
+         this.email = email;
+         this.password = password;
++        this.caloriesPerDay = caloriesPerDay;
+     }
+ 
+     public String getPassword() {
+@@ -53,12 +66,17 @@
+         this.email = email;
+     }
+ 
++    public Integer getCaloriesPerDay() {
++        return caloriesPerDay;
++    }
++
+     @Override
+     public String toString() {
+         return "UserTo{" +
+                 "id=" + id +
+                 ", name='" + name + '\'' +
+                 ", email='" + email + '\'' +
++                ", caloriesPerDay='" + caloriesPerDay + '\'' +
+                 '}';
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java b/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/main/java/ru/javawebinar/topjava/web/SecurityUtil.java	(date 1680733071357)
+@@ -1,25 +1,34 @@
+ package ru.javawebinar.topjava.web;
+ 
+-import ru.javawebinar.topjava.model.AbstractBaseEntity;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContextHolder;
++import ru.javawebinar.topjava.AuthorizedUser;
+ 
+-import static ru.javawebinar.topjava.util.UsersUtil.DEFAULT_CALORIES_PER_DAY;
++import static java.util.Objects.requireNonNull;
+ 
+ public class SecurityUtil {
+ 
+-    private static int id = AbstractBaseEntity.START_SEQ;
+-
+     private SecurityUtil() {
+     }
+ 
++    public static AuthorizedUser safeGet() {
++        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
++        if (auth == null) {
++            return null;
++        }
++        Object principal = auth.getPrincipal();
++        return (principal instanceof AuthorizedUser) ? (AuthorizedUser) principal : null;
++    }
++
++    public static AuthorizedUser get() {
++        return requireNonNull(safeGet(), "No authorized user found");
++    }
++
+     public static int authUserId() {
+-        return id;
+-    }
+-
+-    public static void setAuthUserId(int id) {
+-        SecurityUtil.id = id;
++        return get().getUserTo().id();
+     }
+ 
+     public static int authUserCaloriesPerDay() {
+-        return DEFAULT_CALORIES_PER_DAY;
++        return get().getUserTo().getCaloriesPerDay();
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/Role.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Role.java b/src/main/java/ru/javawebinar/topjava/model/Role.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Role.java	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/main/java/ru/javawebinar/topjava/model/Role.java	(date 1680732921005)
+@@ -1,6 +1,14 @@
+ package ru.javawebinar.topjava.model;
+ 
+-public enum Role {
++import org.springframework.security.core.GrantedAuthority;
++
++public enum Role implements GrantedAuthority {
+     USER,
+-    ADMIN
++    ADMIN;
++
++//    https://stackoverflow.com/a/19542316/548473
++    @Override
++    public String getAuthority() {
++        return "ROLE_" + name();
++    }
+ }
+\ No newline at end of file
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-security.xml b/src/main/resources/spring/spring-security.xml
+--- a/src/main/resources/spring/spring-security.xml	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/main/resources/spring/spring-security.xml	(date 1680732930151)
+@@ -30,12 +30,19 @@
+     </http>
+ 
+     <authentication-manager>
+-        <authentication-provider>
++        <authentication-provider user-service-ref="userService">
+             <password-encoder ref="noopEncoder"/>
++<!--
++            <jdbc-user-service data-source-ref="dataSource"
++                               users-by-username-query="SELECT email, password, enabled FROM users WHERE email = ?"
++                               authorities-by-username-query="
++                                                       SELECT u.email, r.role FROM users u, user_roles r WHERE u.id = r.user_id AND u.email = ?"
++            />
+             <user-service>
+                 <user name="user@yandex.ru" password="password" authorities="ROLE_USER"/>
+                 <user name="admin@gmail.com" password="admin" authorities="ROLE_ADMIN"/>
+             </user-service>
++-->
+         </authentication-provider>
+     </authentication-manager>
+ </beans:beans>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/AuthorizedUser.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/AuthorizedUser.java b/src/main/java/ru/javawebinar/topjava/AuthorizedUser.java
+new file mode 100644
+--- /dev/null	(date 1680733071361)
++++ b/src/main/java/ru/javawebinar/topjava/AuthorizedUser.java	(date 1680733071361)
+@@ -0,0 +1,36 @@
++package ru.javawebinar.topjava;
++
++import ru.javawebinar.topjava.model.User;
++import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.util.UsersUtil;
++
++import java.io.Serial;
++
++public class AuthorizedUser extends org.springframework.security.core.userdetails.User {
++    @Serial
++    private static final long serialVersionUID = 1L;
++
++    private UserTo userTo;
++
++    public AuthorizedUser(User user) {
++        super(user.getEmail(), user.getPassword(), user.isEnabled(), true, true, true, user.getRoles());
++        this.userTo = UsersUtil.asTo(user);
++    }
++
++    public int getId() {
++        return userTo.id();
++    }
++
++    public void update(UserTo newTo) {
++        userTo = newTo;
++    }
++
++    public UserTo getUserTo() {
++        return userTo;
++    }
++
++    @Override
++    public String toString() {
++        return userTo.toString();
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/UsersUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java b/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java	(date 1680732930162)
+@@ -12,9 +12,14 @@
+         return new User(null, userTo.getName(), userTo.getEmail().toLowerCase(), userTo.getPassword(), Role.USER);
+     }
+ 
++    public static UserTo asTo(User user) {
++        return new UserTo(user.getId(), user.getName(), user.getEmail(), user.getPassword(), user.getCaloriesPerDay());
++    }
++
+     public static User updateFromTo(User user, UserTo userTo) {
+         user.setName(userTo.getName());
+         user.setEmail(userTo.getEmail().toLowerCase());
++        user.setCaloriesPerDay(userTo.getCaloriesPerDay());
+         user.setPassword(userTo.getPassword());
+         return user;
+     }
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/UserService.java b/src/main/java/ru/javawebinar/topjava/service/UserService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision 6f52230819a8514dafc3939a695c1bb4a48fd7d9)
++++ b/src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1680732921011)
+@@ -2,9 +2,14 @@
+ 
+ import org.springframework.cache.annotation.CacheEvict;
+ import org.springframework.cache.annotation.Cacheable;
++import org.springframework.context.annotation.Scope;
++import org.springframework.context.annotation.ScopedProxyMode;
++import org.springframework.security.core.userdetails.UserDetailsService;
++import org.springframework.security.core.userdetails.UsernameNotFoundException;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.util.Assert;
++import ru.javawebinar.topjava.AuthorizedUser;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+ import ru.javawebinar.topjava.to.UserTo;
+@@ -15,8 +20,9 @@
+ import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFound;
+ import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFoundWithId;
+ 
+-@Service
+-public class UserService {
++@Service("userService")
++@Scope(proxyMode = ScopedProxyMode.TARGET_CLASS)
++public class UserService implements UserDetailsService {
+ 
+     private final UserRepository repository;
+ 
+@@ -72,6 +78,15 @@
+         repository.save(user);  // !! need only for JDBC implementation
+     }
+ 
++    @Override
++    public AuthorizedUser loadUserByUsername(String email) throws UsernameNotFoundException {
++        User user = repository.getByEmail(email.toLowerCase());
++        if (user == null) {
++            throw new UsernameNotFoundException("User " + email + " is not found");
++        }
++        return new AuthorizedUser(user);
++    }
++
+     public User getWithMeals(int id) {
+         return checkNotFoundWithId(repository.getWithMeals(id), id);
+     }

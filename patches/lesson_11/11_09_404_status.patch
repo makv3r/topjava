@@ -1,0 +1,151 @@
+Index: src/main/webapp/test.html
+===================================================================
+diff --git a/src/main/webapp/test.html b/src/main/webapp/test.html
+deleted file mode 100644
+--- a/src/main/webapp/test.html	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ /dev/null	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
+@@ -1,13 +0,0 @@
+-<html>
+-<link rel="stylesheet" href="resources/css/style.css">
+-<link rel="stylesheet" href="webjars/bootstrap/4.4.1/dist/css/bootstrap.min.css">
+-<link rel="shortcut icon" href="resources/images/icon-meal.png">
+-<body>
+-<hr/>
+-<ul>
+-    <li><a href="users">User list</a></li>
+-    <li><a href="meals">Meal list</a></li>
+-</ul>
+-<hr/>
+-</body>
+-</html>
+\ No newline at end of file
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1608158560940)
+@@ -11,7 +11,8 @@
+     <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper" id="objectMapper" factory-method="getMapper"/>
+ 
+     <!-- serve static resources (*.html, ...) from src/main/webapp/ -->
+-    <mvc:default-servlet-handler/>
++    <!--https://stackoverflow.com/a/44393203/548473-->
++    <!--<mvc:default-servlet-handler/>-->
+ 
+     <security:global-method-security secured-annotations="enabled" pre-post-annotations="enabled"/>
+ 
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ b/config/messages/app.properties	(date 1608158560918)
+@@ -56,6 +56,7 @@
+ error.dataNotFound=Data not found
+ error.dataError=Data error
+ error.validationError=Validation error
++error.wrongRequest=Wrong request
+ 
+ NotEmpty=[{0}] must not be empty
+ NotBlank=[{0}] must not be empty
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ b/config/messages/app_ru.properties	(date 1608158560922)
+@@ -58,6 +58,7 @@
+ error.dataNotFound=Данные не найдены
+ error.dataError=Ошибка в данных
+ error.validationError=Ошибка проверки данных
++error.wrongRequest=Неверный запрос
+ 
+ NotEmpty=[{0}] не должно быть пустым
+ NotBlank=[{0}] не должно быть пустым
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/web.xml b/src/main/webapp/WEB-INF/web.xml
+--- a/src/main/webapp/WEB-INF/web.xml	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ b/src/main/webapp/WEB-INF/web.xml	(date 1608158560944)
+@@ -30,6 +30,10 @@
+             <param-name>contextConfigLocation</param-name>
+             <param-value>classpath:spring/spring-mvc.xml</param-value>
+         </init-param>
++        <init-param>
++            <param-name>throwExceptionIfNoHandlerFound</param-name>
++            <param-value>true</param-value>
++        </init-param>
+         <load-on-startup>1</load-on-startup>
+     </servlet>
+     <servlet-mapping>
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java
+--- a/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java	(date 1608158605999)
+@@ -4,7 +4,8 @@
+     APP_ERROR("error.appError"),
+     DATA_NOT_FOUND("error.dataNotFound"),
+     DATA_ERROR("error.dataError"),
+-    VALIDATION_ERROR("error.validationError");
++    VALIDATION_ERROR("error.validationError"),
++    WRONG_REQUEST("error.wrongRequest");
+ 
+     private final String errorCode;
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(revision c5cfbc2b4444d358ea74d30f84a1a0e1511e9345)
++++ b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(date 1608159064823)
+@@ -7,6 +7,7 @@
+ import org.springframework.web.bind.annotation.ControllerAdvice;
+ import org.springframework.web.bind.annotation.ExceptionHandler;
+ import org.springframework.web.servlet.ModelAndView;
++import org.springframework.web.servlet.NoHandlerFoundException;
+ import ru.javawebinar.topjava.AuthorizedUser;
+ import ru.javawebinar.topjava.util.ValidationUtil;
+ import ru.javawebinar.topjava.util.exception.ErrorType;
+@@ -24,15 +25,23 @@
+         this.messageSourceAccessor = messageSourceAccessor;
+     }
+ 
++    @ExceptionHandler(NoHandlerFoundException.class)
++    public ModelAndView wrongRequest(HttpServletRequest req, NoHandlerFoundException e) throws Exception {
++        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST, HttpStatus.BAD_REQUEST);
++    }
++
+     @ExceptionHandler(Exception.class)
+     public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e) throws Exception {
+         log.error("Exception at request " + req.getRequestURL(), e);
+-        Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, true, ErrorType.APP_ERROR);
++        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR, HttpStatus.INTERNAL_SERVER_ERROR);
++    }
+ 
+-        HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
++    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType, HttpStatus httpStatus) {
++        Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, logException, errorType);
++
+         ModelAndView mav = new ModelAndView("exception",
+                 Map.of("exception", rootCause, "message", ValidationUtil.getMessage(rootCause),
+-                        "typeMessage", messageSourceAccessor.getMessage(ErrorType.APP_ERROR.getErrorCode()),
++                        "typeMessage", messageSourceAccessor.getMessage(errorType.getErrorCode()),
+                         "status", httpStatus));
+         mav.setStatus(httpStatus);
+ 

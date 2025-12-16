@@ -1,0 +1,707 @@
+Subject: [PATCH] 11_12_XSS
+---
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/pom.xml	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -20,6 +20,7 @@
+         <spring-data-jpa.version>2.7.18</spring-data-jpa.version>
+         <jackson.version>2.19.2</jackson.version>
+         <tomcat.version>9.0.106</tomcat.version>
++        <jsoup.version>1.21.1</jsoup.version>
+ 
+         <!-- Hibernate -->
+         <hibernate.version>5.6.15.Final</hibernate.version>
+@@ -184,15 +185,17 @@
+             <artifactId>hibernate-core</artifactId>
+             <version>${hibernate.version}</version>
+         </dependency>
++
++        <!--    Validation-->
+         <dependency>
+             <groupId>org.hibernate.validator</groupId>
+             <artifactId>hibernate-validator</artifactId>
+             <version>${hibernate-validator.version}</version>
+         </dependency>
+         <dependency>
+-            <groupId>org.hibernate</groupId>
+-            <artifactId>hibernate-jcache</artifactId>
+-            <version>${hibernate.version}</version>
++            <groupId>org.jsoup</groupId>
++            <artifactId>jsoup</artifactId>
++            <version>${jsoup.version}</version>
+         </dependency>
+ 
+         <!--http://hibernate.org/validator/documentation/getting-started/#unified-expression-language-el-->
+@@ -204,6 +207,11 @@
+         </dependency>
+ 
+         <!-- Cache -->
++        <dependency>
++            <groupId>org.hibernate</groupId>
++            <artifactId>hibernate-jcache</artifactId>
++            <version>${hibernate.version}</version>
++        </dependency>
+         <dependency>
+             <groupId>javax.cache</groupId>
+             <artifactId>cache-api</artifactId>
+Index: src/main/java/ru/javawebinar/topjava/View.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/View.java b/src/main/java/ru/javawebinar/topjava/View.java
+--- a/src/main/java/ru/javawebinar/topjava/View.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/View.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -3,5 +3,9 @@
+ import javax.validation.groups.Default;
+ 
+ public class View {
++    // Validate only form UI/REST
++    public interface Web extends Default {}
++
++    // Validate only when DB save/update
+     public interface Persist extends Default {}
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java b/src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java
+--- a/src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/model/AbstractNamedEntity.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -2,16 +2,18 @@
+ 
+ import javax.persistence.Column;
+ import javax.persistence.MappedSuperclass;
++import ru.javawebinar.topjava.View;
++import ru.javawebinar.topjava.util.validation.NoHtml;
+ import javax.validation.constraints.NotBlank;
+ import javax.validation.constraints.Size;
+ 
+-
+ @MappedSuperclass
+ public abstract class AbstractNamedEntity extends AbstractBaseEntity {
+ 
+     @NotBlank
+     @Size(min = 2, max = 128)
+     @Column(name = "name", nullable = false)
++    @NoHtml(groups = {View.Web.class})
+     protected String name;
+ 
+     protected AbstractNamedEntity() {
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -7,6 +7,7 @@
+ import org.springframework.format.annotation.DateTimeFormat;
+ import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.util.DateTimeUtil;
++import ru.javawebinar.topjava.util.validation.NoHtml;
+ 
+ import javax.persistence.*;
+ import javax.validation.constraints.NotBlank;
+@@ -41,6 +42,7 @@
+     @Column(name = "description", nullable = false)
+     @NotBlank
+     @Size(min = 2, max = 120)
++    @NoHtml(groups = {View.Web.class})
+     private String description;
+ 
+     @Column(name = "calories", nullable = false)
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -7,6 +7,8 @@
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
+ import ru.javawebinar.topjava.HasIdAndEmail;
++import ru.javawebinar.topjava.View;
++import ru.javawebinar.topjava.util.validation.NoHtml;
+ 
+ import javax.persistence.Entity;
+ import javax.persistence.NamedQueries;
+@@ -40,6 +42,7 @@
+     @Email
+     @NotBlank
+     @Size(max = 128)
++    @NoHtml(groups = {View.Web.class})  // https://stackoverflow.com/questions/17480809
+     private String email;
+ 
+     @Column(name = "password", nullable = false)
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -11,7 +11,7 @@
+ import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+-import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.validation.ValidationUtil;
+ 
+ import java.time.LocalDateTime;
+ import java.util.List;
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -13,7 +13,7 @@
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+-import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.validation.ValidationUtil;
+ 
+ import java.util.*;
+ 
+Index: src/main/java/ru/javawebinar/topjava/service/MealService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/MealService.java b/src/main/java/ru/javawebinar/topjava/service/MealService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/MealService.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/service/MealService.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -11,7 +11,7 @@
+ 
+ import static ru.javawebinar.topjava.util.DateTimeUtil.atStartOfDayOrMin;
+ import static ru.javawebinar.topjava.util.DateTimeUtil.atStartOfNextDayOrMax;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFound;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.checkNotFound;
+ 
+ @Service
+ public class MealService {
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/UserService.java b/src/main/java/ru/javawebinar/topjava/service/UserService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -19,7 +19,7 @@
+ import java.util.List;
+ 
+ import static ru.javawebinar.topjava.util.UsersUtil.prepareToSave;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkNotFound;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.checkNotFound;
+ 
+ @Service("userService")
+ @Scope(proxyMode = ScopedProxyMode.TARGET_CLASS)
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/UserTo.java b/src/main/java/ru/javawebinar/topjava/to/UserTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -3,6 +3,7 @@
+ import org.hibernate.validator.constraints.Range;
+ import ru.javawebinar.topjava.HasIdAndEmail;
+ import ru.javawebinar.topjava.util.UsersUtil;
++import ru.javawebinar.topjava.util.validation.NoHtml;
+ 
+ import javax.validation.constraints.Email;
+ import javax.validation.constraints.NotBlank;
+@@ -17,11 +18,13 @@
+ 
+     @NotBlank
+     @Size(min = 2, max = 100)
++    @NoHtml
+     private String name;
+ 
+     @Email
+     @NotBlank
+     @Size(max = 100)
++    @NoHtml // https://stackoverflow.com/questions/17480809
+     private String email;
+ 
+     @NotBlank
+Index: src/main/java/ru/javawebinar/topjava/util/validation/NoHtml.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/validation/NoHtml.java b/src/main/java/ru/javawebinar/topjava/util/validation/NoHtml.java
+new file mode 100644
+--- /dev/null	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
++++ b/src/main/java/ru/javawebinar/topjava/util/validation/NoHtml.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -0,0 +1,23 @@
++package ru.javawebinar.topjava.util.validation;
++
++import javax.validation.Constraint;
++import javax.validation.Payload;
++import java.lang.annotation.Documented;
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++
++import static java.lang.annotation.ElementType.FIELD;
++import static java.lang.annotation.ElementType.METHOD;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++@Documented
++@Constraint(validatedBy = NoHtmlValidator.class)
++@Target({METHOD, FIELD})
++@Retention(RUNTIME)
++public @interface NoHtml {
++    String message() default "Unsafe html content";
++
++    Class<?>[] groups() default {};
++
++    Class<? extends Payload>[] payload() default {};
++}
+Index: src/main/java/ru/javawebinar/topjava/util/validation/NoHtmlValidator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/validation/NoHtmlValidator.java b/src/main/java/ru/javawebinar/topjava/util/validation/NoHtmlValidator.java
+new file mode 100644
+--- /dev/null	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
++++ b/src/main/java/ru/javawebinar/topjava/util/validation/NoHtmlValidator.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -0,0 +1,14 @@
++package ru.javawebinar.topjava.util.validation;
++
++import org.jsoup.Jsoup;
++import org.jsoup.safety.Safelist;
++
++import javax.validation.ConstraintValidator;
++import javax.validation.ConstraintValidatorContext;
++
++public class NoHtmlValidator implements ConstraintValidator<NoHtml, String> {
++    @Override
++    public boolean isValid(String value, ConstraintValidatorContext ctx) {
++        return value == null || Jsoup.isValid(value, Safelist.none());
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java b/src/main/java/ru/javawebinar/topjava/util/validation/ValidationUtil.java
+rename from src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+rename to src/main/java/ru/javawebinar/topjava/util/validation/ValidationUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/util/validation/ValidationUtil.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -1,4 +1,5 @@
+-package ru.javawebinar.topjava.util;
++package ru.javawebinar.topjava.util.validation;
++
+ import org.slf4j.Logger;
+ import org.springframework.core.NestedExceptionUtils;
+ import org.springframework.lang.NonNull;
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -13,7 +13,7 @@
+ import org.springframework.web.bind.annotation.RestController;
+ import org.springframework.web.bind.annotation.RestControllerAdvice;
+ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+-import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.validation.ValidationUtil;
+ import ru.javawebinar.topjava.util.exception.ErrorInfo;
+ import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -7,7 +7,7 @@
+ import org.springframework.web.bind.annotation.ExceptionHandler;
+ import org.springframework.web.servlet.ModelAndView;
+ import org.springframework.web.servlet.NoHandlerFoundException;
+-import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.validation.ValidationUtil;
+ import ru.javawebinar.topjava.util.exception.ErrorType;
+ 
+ import javax.servlet.http.HttpServletRequest;
+Index: src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java b/src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/AbstractMealController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -14,8 +14,8 @@
+ import java.time.LocalTime;
+ import java.util.List;
+ 
+-import static ru.javawebinar.topjava.util.ValidationUtil.assureIdConsistent;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkIsNew;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.assureIdConsistent;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.checkIsNew;
+ 
+ public abstract class AbstractMealController {
+     private final Logger log = LoggerFactory.getLogger(getClass());
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -4,12 +4,13 @@
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.lang.Nullable;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ 
+-import javax.validation.Valid;
+ import java.net.URI;
+ import java.time.LocalDate;
+ import java.time.LocalTime;
+@@ -42,12 +43,12 @@
+     @Override
+     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void update(@Valid @RequestBody Meal meal, @PathVariable int id) {
++    public void update(@Validated(View.Web.class) @RequestBody Meal meal, @PathVariable int id) {
+         super.update(meal, id);
+     }
+ 
+     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+-    public ResponseEntity<Meal> createWithLocation(@Valid @RequestBody Meal meal) {
++    public ResponseEntity<Meal> createWithLocation(@Validated(View.Web.class) @RequestBody Meal meal) {
+         Meal created = super.create(meal);
+ 
+         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -3,11 +3,12 @@
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.lang.Nullable;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ 
+-import javax.validation.Valid;
+ import java.time.LocalDate;
+ import java.time.LocalTime;
+ import java.util.List;
+@@ -23,7 +24,7 @@
+     }
+ 
+     @Override
+-    @GetMapping( "/{id}")
++    @GetMapping("/{id}")
+     public Meal get(@PathVariable int id) {
+         return super.get(id);
+     }
+@@ -37,7 +38,7 @@
+ 
+     @PostMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void createOrUpdate(@Valid Meal meal) {
++    public void createOrUpdate(@Validated(View.Web.class) Meal meal) {
+         if (meal.isNew()) {
+             super.create(meal);
+         } else {
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -12,8 +12,8 @@
+ 
+ import java.util.List;
+ 
+-import static ru.javawebinar.topjava.util.ValidationUtil.assureIdConsistent;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkIsNew;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.assureIdConsistent;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.checkIsNew;
+ 
+ public abstract class AbstractUserController {
+     protected final Logger log = LoggerFactory.getLogger(getClass());
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -3,11 +3,12 @@
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.User;
+ 
+-import javax.validation.Valid;
+ import java.net.URI;
+ import java.util.List;
+ 
+@@ -30,7 +31,7 @@
+     }
+ 
+     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+-    public ResponseEntity<User> createWithLocation(@Valid @RequestBody User user) {
++    public ResponseEntity<User> createWithLocation(@Validated(View.Web.class) @RequestBody User user) {
+         User created = super.create(user);
+         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
+                 .path(REST_URL + "/{id}")
+@@ -48,7 +49,7 @@
+     @Override
+     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void update(@Valid @RequestBody User user, @PathVariable int id) {
++    public void update(@Validated(View.Web.class) @RequestBody User user, @PathVariable int id) {
+         super.update(user, id);
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -2,11 +2,12 @@
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+ 
+-import javax.validation.Valid;
+ import java.util.List;
+ 
+ @RestController
+@@ -34,7 +35,7 @@
+ 
+     @PostMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void createOrUpdate(@Valid UserTo userTo) {
++    public void createOrUpdate(@Validated(View.Web.class) UserTo userTo) {
+         if (userTo.isNew()) {
+             super.create(userTo);
+         } else {
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -4,17 +4,16 @@
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.security.core.annotation.AuthenticationPrincipal;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+ import ru.javawebinar.topjava.AuthorizedUser;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+ 
+-import javax.validation.Valid;
+ import java.net.URI;
+ 
+-import static ru.javawebinar.topjava.web.SecurityUtil.authUserId;
+-
+ @RestController
+ @RequestMapping(value = ProfileRestController.REST_URL, produces = MediaType.APPLICATION_JSON_VALUE)
+ public class ProfileRestController extends AbstractUserController {
+@@ -33,7 +32,7 @@
+ 
+     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.CREATED)
+-    public ResponseEntity<User> register(@Valid @RequestBody UserTo userTo) {
++    public ResponseEntity<User> register(@Validated(View.Web.class) @RequestBody UserTo userTo) {
+         User created = super.create(userTo);
+         URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
+                 .path(REST_URL).build().toUri();
+@@ -42,7 +41,7 @@
+ 
+     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void update(@Valid @RequestBody UserTo userTo, @AuthenticationPrincipal AuthorizedUser authUser) {
++    public void update(@Validated(View.Web.class) @RequestBody UserTo userTo, @AuthenticationPrincipal AuthorizedUser authUser) {
+         super.update(userTo, authUser.getId());
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -4,11 +4,13 @@
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.ModelMap;
+ import org.springframework.validation.BindingResult;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PostMapping;
+ import org.springframework.web.bind.annotation.RequestMapping;
+ import org.springframework.web.bind.support.SessionStatus;
+ import ru.javawebinar.topjava.AuthorizedUser;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.to.UserTo;
+ 
+ import javax.validation.Valid;
+@@ -24,7 +26,7 @@
+     }
+ 
+     @PostMapping
+-    public String updateProfile(@Valid UserTo userTo, BindingResult result, SessionStatus status, @AuthenticationPrincipal AuthorizedUser authUser) {
++    public String updateProfile(@Validated(View.Web.class) UserTo userTo, BindingResult result, SessionStatus status, @AuthenticationPrincipal AuthorizedUser authUser) {
+         if (result.hasErrors()) {
+             return "profile";
+         }
+@@ -42,7 +44,7 @@
+     }
+ 
+     @PostMapping("/register")
+-    public String saveRegister(@Valid UserTo userTo, BindingResult result, SessionStatus status, ModelMap model) {
++    public String saveRegister(@Validated(View.Web.class) UserTo userTo, BindingResult result, SessionStatus status, ModelMap model) {
+         if (result.hasErrors()) {
+             model.addAttribute("register", true);
+             return "profile";
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -9,7 +9,7 @@
+ import ru.javawebinar.topjava.TimingExtension;
+ 
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+-import static ru.javawebinar.topjava.util.ValidationUtil.getRootCause;
++import static ru.javawebinar.topjava.util.validation.ValidationUtil.getRootCause;
+ 
+ @SpringJUnitConfig(locations = {
+         "classpath:spring/spring-app.xml",
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -15,6 +15,8 @@
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
++import java.time.LocalDateTime;
++
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+@@ -152,6 +154,18 @@
+                 .andExpect(status().isUnprocessableEntity())
+                 .andExpect(errorType(VALIDATION_ERROR));
+     }
++
++    @Test
++    void updateHtmlUnsafe() throws Exception {
++        Meal invalid = new Meal(MEAL1_ID, LocalDateTime.now(), "<script>alert(123)</script>", 200);
++        perform(MockMvcRequestBuilders.put(REST_URL + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid))
++                .with(userHttpBasic(user)))
++                .andDo(print())
++                .andExpect(status().isUnprocessableEntity())
++                .andExpect(errorType(VALIDATION_ERROR));
++    }
+ 
+     @Test
+     @Transactional(propagation = Propagation.NEVER)
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 4094b162507f6afaf8b7f26cb01cc0099295ee5e)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 5d666b802962a06b2c39c4f4736cc617ac9ab33b)
+@@ -174,6 +174,19 @@
+                 .andExpect(errorType(VALIDATION_ERROR));
+     }
+ 
++    @Test
++    void updateHtmlUnsafe() throws Exception {
++        User updated = new User(user);
++        updated.setName("<script>alert(123)</script>");
++        perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin))
++                .content(jsonWithPassword(updated, "password")))
++                .andDo(print())
++                .andExpect(status().isUnprocessableEntity())
++                .andExpect(errorType(VALIDATION_ERROR));
++    }
++
+     @Test
+     @Transactional(propagation = Propagation.NEVER)
+     void updateDuplicate() throws Exception {

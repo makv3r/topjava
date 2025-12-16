@@ -1,0 +1,378 @@
+Subject: [PATCH] 11_14_vds_restrict_update
+---
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-db.xml b/src/main/resources/spring/spring-db.xml
+--- a/src/main/resources/spring/spring-db.xml	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/src/main/resources/spring/spring-db.xml	(date 1734574543576)
+@@ -34,7 +34,7 @@
+               p:password="${database.password}"/>
+     </beans>
+ 
+-    <beans profile="postgres">
++    <beans profile="postgres,vds">
+         <!--
+             For postgres driver logging
+             It uses java.util.logging and logged via jul-to-slf4j bridge
+@@ -51,7 +51,17 @@
+               p:driverClassName="org.postgresql.Driver"
+               p:url="${database.url}"
+               p:username="${database.username}"
+-              p:password="${database.password}"/>
++              p:password="${database.password}"
++              p:validationQuery="SELECT 1"
++              p:maxActive="10"
++              p:minIdle="2"
++              p:maxWait="20000"
++              p:initialSize="2"
++              p:maxIdle="5"
++              p:testOnBorrow="true"
++              p:removeAbandoned="true"
++              p:testOnConnect="true"
++              p:testWhileIdle="true"/>
+     </beans>
+ 
+     <beans profile="tomcat">
+@@ -71,7 +81,7 @@
+ 
+         <bean id="transactionManager"
+               class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+-            <property name="dataSource" ref="dataSource" />
++            <property name="dataSource" ref="dataSource"/>
+         </bean>
+     </beans>
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/user/VdsRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/VdsRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/VdsRestControllerTest.java
+new file mode 100644
+--- /dev/null	(date 1734574543586)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/VdsRestControllerTest.java	(date 1734574543586)
+@@ -0,0 +1,43 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.http.MediaType;
++import org.springframework.test.context.ActiveProfiles;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import ru.javawebinar.topjava.UserTestData;
++import ru.javawebinar.topjava.util.exception.ErrorType;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.Profiles.VDS;
++import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
++import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.util.exception.UpdateRestrictionException.EXCEPTION_UPDATE_RESTRICTION;
++
++@ActiveProfiles(VDS)
++class VdsRestControllerTest extends AbstractControllerTest {
++
++    private static final String REST_URL = AdminRestController.REST_URL + '/';
++
++    @Test
++    void delete() throws Exception {
++        perform(MockMvcRequestBuilders.delete(REST_URL + USER_ID)
++                .with(userHttpBasic(admin)))
++                .andDo(print())
++                .andExpect(errorType(ErrorType.VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_UPDATE_RESTRICTION))
++                .andExpect(status().isUnprocessableEntity());
++    }
++
++    @Test
++    void update() throws Exception {
++        perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin))
++                .content(UserTestData.jsonWithPassword(user, "password")))
++                .andExpect(errorType(ErrorType.VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_UPDATE_RESTRICTION))
++                .andExpect(status().isUnprocessableEntity());
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/Profiles.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/Profiles.java b/src/main/java/ru/javawebinar/topjava/Profiles.java
+--- a/src/main/java/ru/javawebinar/topjava/Profiles.java	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/src/main/java/ru/javawebinar/topjava/Profiles.java	(date 1734574543568)
+@@ -12,9 +12,10 @@
+ 
+     public static final String
+             POSTGRES_DB = "postgres",
+-            HSQL_DB = "hsqldb";
++            HSQL_DB = "hsqldb",
++            VDS = "vds";
+ 
+-    //  Get DB profile depending of DB driver in classpath
++    //  Get DB profile depending on DB driver in classpath
+     public static String getActiveDbProfile() {
+         if (ClassUtils.isPresent("org.postgresql.Driver", null)) {
+             return POSTGRES_DB;
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java b/src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java
+new file mode 100644
+--- /dev/null	(date 1734574543524)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/ApplicationException.java	(date 1734574543524)
+@@ -0,0 +1,20 @@
++package ru.javawebinar.topjava.util.exception;
++
++public class ApplicationException extends RuntimeException {
++
++    private final ErrorType type;
++    private final String msgCode;
++
++    public ApplicationException(String msgCode, ErrorType type) {
++        this.msgCode = msgCode;
++        this.type = type;
++    }
++
++    public String getMsgCode() {
++        return msgCode;
++    }
++
++    public ErrorType getType() {
++        return type;
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/util/exception/UpdateRestrictionException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/UpdateRestrictionException.java b/src/main/java/ru/javawebinar/topjava/util/exception/UpdateRestrictionException.java
+new file mode 100644
+--- /dev/null	(date 1734574543535)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/UpdateRestrictionException.java	(date 1734574543535)
+@@ -0,0 +1,9 @@
++package ru.javawebinar.topjava.util.exception;
++
++public class UpdateRestrictionException extends ApplicationException {
++    public static final String EXCEPTION_UPDATE_RESTRICTION = "exception.user.updateRestriction";
++
++    public UpdateRestrictionException() {
++        super(EXCEPTION_UPDATE_RESTRICTION, ErrorType.VALIDATION_ERROR);
++    }
++}
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/config/messages/app_ru.properties	(date 1734574430623)
+@@ -50,6 +50,7 @@
+ common.search=Искать
+ 
+ exception.user.duplicateEmail=Пользователь с такой почтой уже есть в приложении
++exception.user.updateRestriction=Изменение Admin/User запрещено
+ exception.meal.duplicateDateTime=У вас уже есть еда с такой датой/временем
+ 
+ error.appError=Ошибка приложения
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1734574543548)
+@@ -14,10 +14,7 @@
+ import org.springframework.web.bind.annotation.RestControllerAdvice;
+ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+ import ru.javawebinar.topjava.util.validation.ValidationUtil;
+-import ru.javawebinar.topjava.util.exception.ErrorInfo;
+-import ru.javawebinar.topjava.util.exception.ErrorType;
+-import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+-import ru.javawebinar.topjava.util.exception.NotFoundException;
++import ru.javawebinar.topjava.util.exception.*;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ import java.util.Map;
+@@ -47,6 +44,11 @@
+         return logAndGetErrorInfo(req, e, false, DATA_NOT_FOUND);
+     }
+ 
++    @ExceptionHandler(ApplicationException.class)
++    public ResponseEntity<ErrorInfo> updateRestrictionError(HttpServletRequest req, ApplicationException appEx) {
++        return logAndGetErrorInfo(req, appEx, false, appEx.getType(), messageSourceAccessor.getMessage(appEx.getMsgCode()));
++    }
++
+     @ExceptionHandler(DataIntegrityViolationException.class)
+     public ResponseEntity<ErrorInfo> conflict(HttpServletRequest req, DataIntegrityViolationException e) {
+         String rootMsg = ValidationUtil.getRootCause(e).getMessage();
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/config/messages/app.properties	(date 1734574430614)
+@@ -50,6 +50,7 @@
+ common.search=Search
+ 
+ exception.user.duplicateEmail=User with this email already exists
++exception.user.updateRestriction=Admin/User update is forbidden
+ exception.meal.duplicateDateTime=You already have meal with this date/time
+ 
+ error.appError=Application error
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(date 1734574543560)
+@@ -7,8 +7,9 @@
+ import org.springframework.web.bind.annotation.ExceptionHandler;
+ import org.springframework.web.servlet.ModelAndView;
+ import org.springframework.web.servlet.NoHandlerFoundException;
+-import ru.javawebinar.topjava.util.validation.ValidationUtil;
++import ru.javawebinar.topjava.util.exception.ApplicationException;
+ import ru.javawebinar.topjava.util.exception.ErrorType;
++import ru.javawebinar.topjava.util.validation.ValidationUtil;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ import java.util.Map;
+@@ -24,21 +25,26 @@
+     }
+ 
+     @ExceptionHandler(NoHandlerFoundException.class)
+-    public ModelAndView wrongRequest(HttpServletRequest req, NoHandlerFoundException e) throws Exception {
+-        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST);
++    public ModelAndView wrongRequest(HttpServletRequest req, NoHandlerFoundException e) {
++        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST, null);
++    }
++
++    @ExceptionHandler(ApplicationException.class)
++    public ModelAndView updateRestrictionException(HttpServletRequest req, ApplicationException appEx) {
++        return logAndGetExceptionView(req, appEx, false, appEx.getType(), appEx.getMsgCode());
+     }
+ 
+     @ExceptionHandler(Exception.class)
+     public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e) throws Exception {
+         log.error("Exception at request " + req.getRequestURL(), e);
+-        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR);
++        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR, null);
+     }
+ 
+-    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType) {
++    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType, String code) {
+         Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, logException, errorType);
+ 
+         ModelAndView mav = new ModelAndView("exception",
+-                Map.of("exception", rootCause, "message", ValidationUtil.getMessage(rootCause),
++                Map.of("exception", rootCause, "message", code != null ? messageSourceAccessor.getMessage(code) : ValidationUtil.getMessage(rootCause),
+                         "typeMessage", messageSourceAccessor.getMessage(errorType.getErrorCode()),
+                         "status", errorType.getStatus()));
+         mav.setStatus(errorType.getStatus());
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/UserService.java b/src/main/java/ru/javawebinar/topjava/service/UserService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision 012ca71a4b3f63f106a24e0387f22df2fc5f326d)
++++ b/src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1734574690563)
+@@ -1,9 +1,11 @@
+ package ru.javawebinar.topjava.service;
+ 
++import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.cache.annotation.CacheEvict;
+ import org.springframework.cache.annotation.Cacheable;
+ import org.springframework.context.annotation.Scope;
+ import org.springframework.context.annotation.ScopedProxyMode;
++import org.springframework.core.env.Environment;
+ import org.springframework.security.core.userdetails.UserDetailsService;
+ import org.springframework.security.core.userdetails.UsernameNotFoundException;
+ import org.springframework.security.crypto.password.PasswordEncoder;
+@@ -11,10 +13,13 @@
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.AuthorizedUser;
++import ru.javawebinar.topjava.Profiles;
++import ru.javawebinar.topjava.model.AbstractBaseEntity;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+ import ru.javawebinar.topjava.to.UserTo;
+ import ru.javawebinar.topjava.util.UsersUtil;
++import ru.javawebinar.topjava.util.exception.UpdateRestrictionException;
+ 
+ import java.util.List;
+ 
+@@ -28,6 +33,14 @@
+     private final UserRepository repository;
+     private final PasswordEncoder passwordEncoder;
+ 
++    private boolean modificationRestriction;
++
++    @Autowired
++    @SuppressWarnings("deprecation")
++    public void setEnvironment(Environment environment) {
++        modificationRestriction = environment.acceptsProfiles(Profiles.VDS);
++    }
++
+     public UserService(UserRepository repository, PasswordEncoder passwordEncoder) {
+         this.repository = repository;
+         this.passwordEncoder = passwordEncoder;
+@@ -41,6 +54,7 @@
+ 
+     @CacheEvict(value = "users", allEntries = true)
+     public void delete(int id) {
++        checkModificationAllowed(id);
+         checkNotFound(repository.delete(id), id);
+     }
+ 
+@@ -62,6 +76,7 @@
+     public void update(User user) {
+         Assert.notNull(user, "user must not be null");
+ //      checkNotFound :  check works only for JDBC, disabled
++        checkModificationAllowed(user.id());
+         prepareAndSave(user);
+     }
+ 
+@@ -69,6 +84,7 @@
+     @CacheEvict(value = "users", allEntries = true)
+     @Transactional
+     public void update(UserTo userTo) {
++        checkModificationAllowed(userTo.id());
+         User user = get(userTo.id());
+         prepareAndSave(UsersUtil.updateFromTo(user, userTo));
+     }
+@@ -76,6 +92,7 @@
+     @CacheEvict(value = "users", allEntries = true)
+     @Transactional
+     public void enable(int id, boolean enabled) {
++        checkModificationAllowed(id);
+         User user = get(id);
+         user.setEnabled(enabled);
+         repository.save(user);  // !! need only for JDBC implementation
+@@ -97,4 +114,10 @@
+     public User getWithMeals(int id) {
+         return checkNotFound(repository.getWithMeals(id), id);
+     }
++
++    protected void checkModificationAllowed(int id) {
++        if (modificationRestriction && id < AbstractBaseEntity.START_SEQ + 2) {
++            throw new UpdateRestrictionException();
++        }
++    }
+ }
+\ No newline at end of file

@@ -1,0 +1,200 @@
+Subject: [PATCH] 8_06_HW07_test_with_meals
+---
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/UserTestData.java b/src/test/java/ru/javawebinar/topjava/UserTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/UserTestData.java	(revision 0c20ca2c31b39e3820dac211390d8082aa1f4468)
++++ b/src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1679568062147)
+@@ -5,11 +5,21 @@
+ 
+ import java.util.Collections;
+ import java.util.Date;
++import java.util.List;
+ 
++import static org.assertj.core.api.Assertions.assertThat;
++import static ru.javawebinar.topjava.MealTestData.*;
+ import static ru.javawebinar.topjava.model.AbstractBaseEntity.START_SEQ;
+ 
+ public class UserTestData {
+     public static final MatcherFactory.Matcher<User> USER_MATCHER = MatcherFactory.usingIgnoringFieldsComparator(User.class, "registered", "meals");
++    public static MatcherFactory.Matcher<User> USER_WITH_MEALS_MATCHER =
++            MatcherFactory.usingAssertions(User.class,
++//     No need use ignoringAllOverriddenEquals, see https://assertj.github.io/doc/#breaking-changes
++                    (a, e) -> assertThat(a).usingRecursiveComparison().ignoringFields("registered", "meals.user").isEqualTo(e),
++                    (a, e) -> {
++                        throw new UnsupportedOperationException();
++                    });
+ 
+     public static final int USER_ID = START_SEQ;
+     public static final int ADMIN_ID = START_SEQ + 1;
+@@ -20,6 +30,11 @@
+     public static final User admin = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", Role.ADMIN, Role.USER);
+     public static final User guest = new User(GUEST_ID, "Guest", "guest@gmail.com", "guest");
+ 
++    static {
++        user.setMeals(meals);
++        admin.setMeals(List.of(adminMeal2, adminMeal1));
++    }
++
+     public static User getNew() {
+         return new User(null, "New", "new@gmail.com", "newPass", 1555, false, new Date(), Collections.singleton(Role.USER));
+     }
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(revision 0c20ca2c31b39e3820dac211390d8082aa1f4468)
++++ b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1679568079844)
+@@ -1,6 +1,8 @@
+ package ru.javawebinar.topjava.web;
+ 
++import org.junit.jupiter.api.Assumptions;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.core.env.Environment;
+ import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
+ import org.springframework.test.web.servlet.MockMvc;
+@@ -35,9 +37,16 @@
+ 
+     private MockMvc mockMvc;
+ 
++    @Autowired
++    private Environment env;
++
+     @Autowired
+     private WebApplicationContext webApplicationContext;
+ 
++    protected void assumeDataJpa() {
++        Assumptions.assumeTrue(env.acceptsProfiles(org.springframework.core.env.Profiles.of(Profiles.DATAJPA)), "DATA-JPA only");
++    }
++
+     @PostConstruct
+     private void postConstruct() {
+         mockMvc = MockMvcBuilders
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 0c20ca2c31b39e3820dac211390d8082aa1f4468)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1679568062131)
+@@ -83,4 +83,14 @@
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(USER_MATCHER.contentJson(admin, guest, user));
+     }
++
++    @Test
++    void getWithMeals() throws Exception {
++        assumeDataJpa();
++        perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID + "/with-meals"))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_WITH_MEALS_MATCHER.contentJson(admin));
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 0c20ca2c31b39e3820dac211390d8082aa1f4468)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1679568062119)
+@@ -1,10 +1,10 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonManagedReference;
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.*;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
+-import com.fasterxml.jackson.annotation.JsonManagedReference;
+ 
+ import javax.persistence.Entity;
+ import javax.persistence.NamedQueries;
+@@ -58,7 +58,7 @@
+             uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "role"}, name = "uk_user_role")})
+     @Column(name = "role")
+     @ElementCollection(fetch = FetchType.EAGER)
+-//    @Fetch(FetchMode.SUBSELECT)
++    //    @Fetch(FetchMode.SUBSELECT)
+     @BatchSize(size = 200)
+     @JoinColumn
+     @OnDelete(action = OnDeleteAction.CASCADE)
+@@ -147,6 +147,10 @@
+         return meals;
+     }
+ 
++    public void setMeals(List<Meal> meals) {
++        this.meals = meals;
++    }
++
+     @Override
+     public String toString() {
+         return "User{" +
+Index: src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(revision 0c20ca2c31b39e3820dac211390d8082aa1f4468)
++++ b/src/test/java/ru/javawebinar/topjava/service/datajpa/DataJpaUserServiceTest.java	(date 1679568062124)
+@@ -3,13 +3,10 @@
+ import org.junit.jupiter.api.Assertions;
+ import org.junit.jupiter.api.Test;
+ import org.springframework.test.context.ActiveProfiles;
+-import ru.javawebinar.topjava.MealTestData;
+-import ru.javawebinar.topjava.UserTestData;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.AbstractUserServiceTest;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+-import static ru.javawebinar.topjava.MealTestData.MEAL_MATCHER;
+ import static ru.javawebinar.topjava.Profiles.DATAJPA;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+@@ -17,9 +14,8 @@
+ class DataJpaUserServiceTest extends AbstractUserServiceTest {
+     @Test
+     void getWithMeals() {
+-        User admin = service.getWithMeals(ADMIN_ID);
+-        USER_MATCHER.assertMatch(admin, UserTestData.admin);
+-        MEAL_MATCHER.assertMatch(admin.getMeals(), MealTestData.adminMeal2, MealTestData.adminMeal1);
++        User actual = service.getWithMeals(ADMIN_ID);
++        USER_WITH_MEALS_MATCHER.assertMatch(actual, admin);
+     }
+ 
+     @Test
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision 0c20ca2c31b39e3820dac211390d8082aa1f4468)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1679568062136)
+@@ -45,4 +45,14 @@
+ 
+         USER_MATCHER.assertMatch(userService.get(USER_ID), updated);
+     }
++
++    @Test
++    void getWithMeals() throws Exception {
++        assumeDataJpa();
++        perform(MockMvcRequestBuilders.get(REST_URL + "/with-meals"))
++                .andExpect(status().isOk())
++                .andDo(print())
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
++                .andExpect(USER_WITH_MEALS_MATCHER.contentJson(user));
++    }
+ }
+\ No newline at end of file

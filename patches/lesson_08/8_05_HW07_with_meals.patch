@@ -1,0 +1,105 @@
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 1dfb7c85fdeea6a90f5533e620365452cc1ce198)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1617217046969)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonBackReference;
+ import org.hibernate.annotations.OnDelete;
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
+@@ -45,6 +46,7 @@
+     @ManyToOne(fetch = FetchType.LAZY)
+     @JoinColumn(name = "user_id", nullable = false)
+     @OnDelete(action = OnDeleteAction.CASCADE)
++    @JsonBackReference
+ //    @NotNull
+     private User user;
+ 
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 1dfb7c85fdeea6a90f5533e620365452cc1ce198)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1617217085679)
+@@ -4,6 +4,7 @@
+ import org.hibernate.annotations.*;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
++import com.fasterxml.jackson.annotation.JsonManagedReference;
+ 
+ import javax.persistence.Entity;
+ import javax.persistence.NamedQueries;
+@@ -69,7 +70,7 @@
+ 
+     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
+     @OrderBy("dateTime DESC")
+-//    @JsonIgnore
++    @JsonManagedReference
+     private List<Meal> meals;
+ 
+     public User() {
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision 1dfb7c85fdeea6a90f5533e620365452cc1ce198)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1617217099079)
+@@ -48,4 +48,9 @@
+         log.info("getByEmail {}", email);
+         return service.getByEmail(email);
+     }
++
++    public User getWithMeals(int id) {
++        log.info("getWithMeals {}", id);
++        return service.getWithMeals(id);
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(revision 1dfb7c85fdeea6a90f5533e620365452cc1ce198)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(date 1617217115111)
+@@ -56,4 +56,9 @@
+     public User getByMail(@RequestParam String email) {
+         return super.getByMail(email);
+     }
++
++    @GetMapping("/{id}/with-meals")
++    public User getWithMeals(@PathVariable int id) {
++        return super.getWithMeals(id);
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(revision 1dfb7c85fdeea6a90f5533e620365452cc1ce198)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1617217115123)
+@@ -33,4 +33,9 @@
+     public String testUTF() {
+         return "Русский текст";
+     }
++
++    @GetMapping("/with-meals")
++    public User getWithMeals() {
++        return super.getWithMeals(authUserId());
++    }
+ }
+\ No newline at end of file

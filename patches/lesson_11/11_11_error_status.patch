@@ -1,0 +1,200 @@
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java
+--- a/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java	(revision dfa84706b6ebf7e4d51a6ea26886ce0b4d0a2b1f)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java	(date 1660822849711)
+@@ -1,19 +1,28 @@
+ package ru.javawebinar.topjava.util.exception;
+ 
++import org.springframework.http.HttpStatus;
++
+ public enum ErrorType {
+-    APP_ERROR("error.appError"),
+-    DATA_NOT_FOUND("error.dataNotFound"),
+-    DATA_ERROR("error.dataError"),
+-    VALIDATION_ERROR("error.validationError"),
+-    WRONG_REQUEST("error.wrongRequest");
++    APP_ERROR("error.appError", HttpStatus.INTERNAL_SERVER_ERROR),
++    //  http://stackoverflow.com/a/22358422/548473
++    DATA_NOT_FOUND("error.dataNotFound", HttpStatus.UNPROCESSABLE_ENTITY),
++    DATA_ERROR("error.dataError", HttpStatus.CONFLICT),
++    VALIDATION_ERROR("error.validationError", HttpStatus.UNPROCESSABLE_ENTITY),
++    WRONG_REQUEST("error.wrongRequest", HttpStatus.BAD_REQUEST);
+ 
+     private final String errorCode;
++    private final HttpStatus status;
+ 
+-    ErrorType(String errorCode) {
++    ErrorType(String errorCode, HttpStatus status) {
+         this.errorCode = errorCode;
++        this.status = status;
+     }
+ 
+     public String getErrorCode() {
+         return errorCode;
+     }
+-}
++
++    public HttpStatus getStatus() {
++        return status;
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision dfa84706b6ebf7e4d51a6ea26886ce0b4d0a2b1f)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1660823048315)
+@@ -6,11 +6,10 @@
+ import org.springframework.core.Ordered;
+ import org.springframework.core.annotation.Order;
+ import org.springframework.dao.DataIntegrityViolationException;
+-import org.springframework.http.HttpStatus;
++import org.springframework.http.ResponseEntity;
+ import org.springframework.http.converter.HttpMessageNotReadableException;
+ import org.springframework.validation.BindException;
+ import org.springframework.web.bind.annotation.ExceptionHandler;
+-import org.springframework.web.bind.annotation.ResponseStatus;
+ import org.springframework.web.bind.annotation.RestController;
+ import org.springframework.web.bind.annotation.RestControllerAdvice;
+ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+@@ -43,16 +42,13 @@
+         this.messageSourceAccessor = messageSourceAccessor;
+     }
+ 
+-    //  http://stackoverflow.com/a/22358422/548473
+-    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+     @ExceptionHandler(NotFoundException.class)
+-    public ErrorInfo notFoundError(HttpServletRequest req, NotFoundException e) {
++    public ResponseEntity<ErrorInfo> notFoundError(HttpServletRequest req, NotFoundException e) {
+         return logAndGetErrorInfo(req, e, false, DATA_NOT_FOUND);
+     }
+ 
+-    @ResponseStatus(HttpStatus.CONFLICT)  // 409
+     @ExceptionHandler(DataIntegrityViolationException.class)
+-    public ErrorInfo conflict(HttpServletRequest req, DataIntegrityViolationException e) {
++    public ResponseEntity<ErrorInfo> conflict(HttpServletRequest req, DataIntegrityViolationException e) {
+         String rootMsg = ValidationUtil.getRootCause(e).getMessage();
+         if (rootMsg != null) {
+             String lowerCaseMsg = rootMsg.toLowerCase();
+@@ -65,9 +61,8 @@
+         return logAndGetErrorInfo(req, e, true, DATA_ERROR);
+     }
+ 
+-    @ResponseStatus(value = HttpStatus.UNPROCESSABLE_ENTITY)  // 422
+     @ExceptionHandler(BindException.class)
+-    public ErrorInfo bindValidationError(HttpServletRequest req, BindException e) {
++    public ResponseEntity<ErrorInfo> bindValidationError(HttpServletRequest req, BindException e) {
+         String[] details = e.getBindingResult().getFieldErrors().stream()
+                 .map(messageSourceAccessor::getMessage)
+                 .toArray(String[]::new);
+@@ -75,23 +70,23 @@
+         return logAndGetErrorInfo(req, e, false, VALIDATION_ERROR, details);
+     }
+ 
+-    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)  // 422
+     @ExceptionHandler({IllegalRequestDataException.class, MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
+-    public ErrorInfo validationError(HttpServletRequest req, Exception e) {
++    public ResponseEntity<ErrorInfo> validationError(HttpServletRequest req, Exception e) {
+         return logAndGetErrorInfo(req, e, false, VALIDATION_ERROR);
+     }
+ 
+-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+     @ExceptionHandler(Exception.class)
+-    public ErrorInfo internalError(HttpServletRequest req, Exception e) {
++    public ResponseEntity<ErrorInfo> internalError(HttpServletRequest req, Exception e) {
+         return logAndGetErrorInfo(req, e, true, APP_ERROR);
+     }
+ 
+     //    https://stackoverflow.com/questions/538870/should-private-helper-methods-be-static-if-they-can-be-static
+-    private ErrorInfo logAndGetErrorInfo(HttpServletRequest req, Exception e, boolean logStackTrace, ErrorType errorType, String... details) {
++    private ResponseEntity<ErrorInfo> logAndGetErrorInfo(HttpServletRequest req, Exception e, boolean logStackTrace, ErrorType errorType, String... details) {
+         Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, logStackTrace, errorType);
+-        return new ErrorInfo(req.getRequestURL(), errorType,
+-                messageSourceAccessor.getMessage(errorType.getErrorCode()),
+-                details.length != 0 ? details : new String[]{ValidationUtil.getMessage(rootCause)});
++        return ResponseEntity.status(errorType.getStatus())
++                .body(new ErrorInfo(req.getRequestURL(), errorType,
++                        messageSourceAccessor.getMessage(errorType.getErrorCode()),
++                        details.length != 0 ? details : new String[]{ValidationUtil.getMessage(rootCause)})
++                );
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision dfa84706b6ebf7e4d51a6ea26886ce0b4d0a2b1f)
++++ b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1660822858303)
+@@ -163,7 +163,7 @@
+                 .content(JsonUtil.writeValue(invalid))
+                 .with(userHttpBasic(user)))
+                 .andDo(print())
+-                .andExpect(status().isConflict())
++                .andExpect(status().isUnprocessableEntity())
+                 .andExpect(errorType(VALIDATION_ERROR))
+                 .andExpect(detailMessage(EXCEPTION_DUPLICATE_DATETIME));
+     }
+@@ -177,7 +177,7 @@
+                 .content(JsonUtil.writeValue(invalid))
+                 .with(userHttpBasic(admin)))
+                 .andDo(print())
+-                .andExpect(status().isConflict())
++                .andExpect(status().isUnprocessableEntity())
+                 .andExpect(errorType(VALIDATION_ERROR))
+                 .andExpect(detailMessage(EXCEPTION_DUPLICATE_DATETIME));
+     }
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(revision dfa84706b6ebf7e4d51a6ea26886ce0b4d0a2b1f)
++++ b/src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(date 1660822858299)
+@@ -3,7 +3,6 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.context.support.MessageSourceAccessor;
+-import org.springframework.http.HttpStatus;
+ import org.springframework.web.bind.annotation.ControllerAdvice;
+ import org.springframework.web.bind.annotation.ExceptionHandler;
+ import org.springframework.web.servlet.ModelAndView;
+@@ -26,23 +25,23 @@
+ 
+     @ExceptionHandler(NoHandlerFoundException.class)
+     public ModelAndView wrongRequest(HttpServletRequest req, NoHandlerFoundException e) throws Exception {
+-        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST, HttpStatus.BAD_REQUEST);
++        return logAndGetExceptionView(req, e, false, ErrorType.WRONG_REQUEST);
+     }
+ 
+     @ExceptionHandler(Exception.class)
+     public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e) throws Exception {
+         log.error("Exception at request " + req.getRequestURL(), e);
+-        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR, HttpStatus.INTERNAL_SERVER_ERROR);
++        return logAndGetExceptionView(req, e, true, ErrorType.APP_ERROR);
+     }
+ 
+-    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType, HttpStatus httpStatus) {
++    private ModelAndView logAndGetExceptionView(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType) {
+         Throwable rootCause = ValidationUtil.logAndGetRootCause(log, req, e, logException, errorType);
+ 
+         ModelAndView mav = new ModelAndView("exception",
+                 Map.of("exception", rootCause, "message", ValidationUtil.getMessage(rootCause),
+                         "typeMessage", messageSourceAccessor.getMessage(errorType.getErrorCode()),
+-                        "status", httpStatus));
+-        mav.setStatus(httpStatus);
++                        "status", errorType.getStatus()));
++        mav.setStatus(errorType.getStatus());
+         return mav;
+     }
+ }

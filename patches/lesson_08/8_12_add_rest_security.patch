@@ -1,0 +1,182 @@
+Subject: [PATCH] 8_12_add_rest_security
+---
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/web.xml b/src/main/webapp/WEB-INF/web.xml
+--- a/src/main/webapp/WEB-INF/web.xml	(revision ea1a980def2bdeac6b69070443532b031b00aeb4)
++++ b/src/main/webapp/WEB-INF/web.xml	(date 1732785766058)
+@@ -37,6 +37,16 @@
+         <url-pattern>/</url-pattern>
+     </servlet-mapping>
+ 
++    <!-- Spring Security -->
++    <filter>
++        <filter-name>springSecurityFilterChain</filter-name>
++        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
++    </filter>
++    <filter-mapping>
++        <filter-name>springSecurityFilterChain</filter-name>
++        <url-pattern>/*</url-pattern>
++    </filter-mapping>
++
+     <filter>
+         <filter-name>encodingFilter</filter-name>
+         <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+Index: config/curl.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/curl.md b/config/curl.md
+--- a/config/curl.md	(revision ea1a980def2bdeac6b69070443532b031b00aeb4)
++++ b/config/curl.md	(date 1732785766044)
+@@ -2,28 +2,28 @@
+ > For windows use `Git Bash`
+ 
+ #### get All Users
+-`curl -s http://localhost:8080/topjava/rest/admin/users`
++`curl -s http://localhost:8080/topjava/rest/admin/users --user admin@gmail.com:admin`
+ 
+ #### get Users 100001
+-`curl -s http://localhost:8080/topjava/rest/admin/users/100001`
++`curl -s http://localhost:8080/topjava/rest/admin/users/100001 --user admin@gmail.com:admin`
+ 
+ #### get All Meals
+-`curl -s http://localhost:8080/topjava/rest/profile/meals`
++`curl -s http://localhost:8080/topjava/rest/profile/meals --user user@yandex.ru:password`
+ 
+ #### get Meals 100003
+-`curl -s http://localhost:8080/topjava/rest/profile/meals/100003`
++`curl -s http://localhost:8080/topjava/rest/profile/meals/100003  --user user@yandex.ru:password`
+ 
+ #### filter Meals
+-`curl -s "http://localhost:8080/topjava/rest/profile/meals/filter?startDate=2020-01-30&startTime=07:00:00&endDate=2020-01-31&endTime=11:00:00"`
++`curl -s "http://localhost:8080/topjava/rest/profile/meals/filter?startDate=2020-01-30&startTime=07:00:00&endDate=2020-01-31&endTime=11:00:00" --user user@yandex.ru:password`
+ 
+ #### get Meals not found
+-`curl -s -v http://localhost:8080/topjava/rest/profile/meals/100008`
++`curl -s -v http://localhost:8080/topjava/rest/profile/meals/100008 --user user@yandex.ru:password`
+ 
+ #### delete Meals
+-`curl -s -X DELETE http://localhost:8080/topjava/rest/profile/meals/100002`
++`curl -s -X DELETE http://localhost:8080/topjava/rest/profile/meals/100002 --user user@yandex.ru:password`
+ 
+ #### create Meals
+-`curl -s -X POST -d '{"dateTime":"2020-02-01T12:00","description":"Created lunch","calories":300}' -H 'Content-Type:application/json;charset=UTF-8' http://localhost:8080/topjava/rest/profile/meals`
++`curl -s -X POST -d '{"dateTime":"2020-02-01T12:00","description":"Created lunch","calories":300}' -H 'Content-Type:application/json;charset=UTF-8' http://localhost:8080/topjava/rest/profile/meals --user user@yandex.ru:password`
+ 
+ #### update Meals
+-`curl -s -X PUT -d '{"dateTime":"2020-01-30T07:00", "description":"Updated breakfast", "calories":200}' -H 'Content-Type: application/json' http://localhost:8080/topjava/rest/profile/meals/100003`
+\ No newline at end of file
++`curl -s -X PUT -d '{"dateTime":"2020-01-30T07:00", "description":"Updated breakfast", "calories":200}' -H 'Content-Type: application/json' http://localhost:8080/topjava/rest/profile/meals/100003 --user user@yandex.ru:password`
+\ No newline at end of file
+Index: src/main/resources/logback.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/logback.xml b/src/main/resources/logback.xml
+--- a/src/main/resources/logback.xml	(revision ea1a980def2bdeac6b69070443532b031b00aeb4)
++++ b/src/main/resources/logback.xml	(date 1732785766055)
+@@ -23,6 +23,7 @@
+     <logger name="ru.javawebinar.topjava" level="debug"/>
+     <!--<logger name="org.springframework.web.servlet" level="debug"/>-->
+     <logger name="org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver" level="debug"/>
++    <logger name="org.springframework.security" level="debug"/>
+ 
+     <root level="info">
+         <appender-ref ref="file"/>
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision ea1a980def2bdeac6b69070443532b031b00aeb4)
++++ b/pom.xml	(date 1732785881263)
+@@ -16,6 +16,7 @@
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <spring.version>5.3.39</spring.version>
++        <spring.security.version>5.8.16</spring.security.version>
+         <spring-data-jpa.version>2.7.18</spring-data-jpa.version>
+         <jackson.version>2.18.1</jackson.version>
+         <tomcat.version>9.0.96</tomcat.version>
+@@ -158,6 +159,18 @@
+             <artifactId>spring-data-jpa</artifactId>
+             <version>${spring-data-jpa.version}</version>
+         </dependency>
++
++        <!--security-->
++        <dependency>
++            <groupId>org.springframework.security</groupId>
++            <artifactId>spring-security-web</artifactId>
++            <version>${spring.security.version}</version>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.security</groupId>
++            <artifactId>spring-security-config</artifactId>
++            <version>${spring.security.version}</version>
++        </dependency>
+ 
+         <!--- ORM -->
+         <dependency>
+Index: src/main/resources/spring/spring-app.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-app.xml b/src/main/resources/spring/spring-app.xml
+--- a/src/main/resources/spring/spring-app.xml	(revision ea1a980def2bdeac6b69070443532b031b00aeb4)
++++ b/src/main/resources/spring/spring-app.xml	(date 1732785766048)
+@@ -10,6 +10,7 @@
+     </bean>
+ -->
+     <import resource="spring-cache.xml"/>
++    <import resource="spring-security.xml"/>
+ 
+     <context:component-scan base-package="ru.javawebinar.**.service"/>
+ </beans>
+\ No newline at end of file
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-security.xml b/src/main/resources/spring/spring-security.xml
+new file mode 100644
+--- /dev/null	(date 1732785766051)
++++ b/src/main/resources/spring/spring-security.xml	(date 1732785766051)
+@@ -0,0 +1,28 @@
++<beans:beans xmlns="http://www.springframework.org/schema/security"
++             xmlns:beans="http://www.springframework.org/schema/beans"
++             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++             xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
++	http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
++
++    <http pattern="/resources/**" security="none"/>
++    <http pattern="/webjars/**" security="none"/>
++
++    <http pattern="/rest/**" use-expressions="true" name="restSecurityFilterChain" create-session="stateless">
++        <http-basic/>
++        <intercept-url pattern="/rest/admin/**" access="hasRole('ADMIN')"/>
++        <intercept-url pattern="/**" access="isAuthenticated()"/>
++        <csrf disabled="true"/>
++    </http>
++
++    <beans:bean name="noopEncoder" class="org.springframework.security.crypto.password.NoOpPasswordEncoder"/>
++
++    <authentication-manager>
++        <authentication-provider>
++            <password-encoder ref="noopEncoder"/>
++            <user-service>
++                <user name="user@yandex.ru" password="password" authorities="ROLE_USER"/>
++                <user name="admin@gmail.com" password="admin" authorities="ROLE_ADMIN"/>
++            </user-service>
++        </authentication-provider>
++    </authentication-manager>
++</beans:beans>
+\ No newline at end of file

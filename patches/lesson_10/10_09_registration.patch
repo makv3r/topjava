@@ -1,0 +1,293 @@
+Subject: [PATCH] 10_09_registration
+---
+Index: src/main/webapp/WEB-INF/jsp/profile.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/profile.jsp b/src/main/webapp/WEB-INF/jsp/profile.jsp
+--- a/src/main/webapp/WEB-INF/jsp/profile.jsp	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/webapp/WEB-INF/jsp/profile.jsp	(date 1702505015813)
+@@ -14,8 +14,8 @@
+         <%--@elvariable id="userTo" type="ru.javawebinar.topjava.to.UserTo"--%>
+         <div class="row">
+             <div class="col-5 offset-3">
+-                <h3>${userTo.name} <spring:message code="app.profile"/></h3>
+-                <form:form class="form-group" modelAttribute="userTo" method="post" action="profile"
++                <h3>${userTo.name} <spring:message code="${register ? 'app.register' : 'app.profile'}"/></h3>
++                <form:form class="form-group" modelAttribute="userTo" method="post" action="${register ? 'profile/register' : 'profile'}"
+                            charset="utf-8" accept-charset="UTF-8">
+ 
+                     <topjava:inputField labelCode="user.name" name="name"/>
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1702505015795)
+@@ -1,6 +1,7 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+ import org.springframework.stereotype.Controller;
++import org.springframework.ui.ModelMap;
+ import org.springframework.validation.BindingResult;
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PostMapping;
+@@ -31,4 +32,23 @@
+             return "redirect:/meals";
+         }
+     }
++
++    @GetMapping("/register")
++    public String register(ModelMap model) {
++        model.addAttribute("userTo", new UserTo());
++        model.addAttribute("register", true);
++        return "profile";
++    }
++
++    @PostMapping("/register")
++    public String saveRegister(@Valid UserTo userTo, BindingResult result, SessionStatus status, ModelMap model) {
++        if (result.hasErrors()) {
++            model.addAttribute("register", true);
++            return "profile";
++        } else {
++            super.create(userTo);
++            status.setComplete();
++            return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
++        }
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1702505015788)
+@@ -29,10 +29,10 @@
+         return service.get(id);
+     }
+ 
+-    public void create(UserTo userTo) {
++    public User create(UserTo userTo) {
+         log.info("create {}", userTo);
+         checkNew(userTo);
+-        service.create(UsersUtil.createNewFromTo(userTo));
++        return service.create(UsersUtil.createNewFromTo(userTo));
+     }
+ 
+     public User create(User user) {
+Index: config/curl.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/curl.md b/config/curl.md
+--- a/config/curl.md	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/config/curl.md	(date 1702505015783)
+@@ -7,6 +7,12 @@
+ #### get Users 100001
+ `curl -s http://localhost:8080/topjava/rest/admin/users/100001 --user admin@gmail.com:admin`
+ 
++#### register User
++`curl -s -i -X POST -d '{"name":"New User","email":"test@mail.ru","password":"test-password"}' -H 'Content-Type:application/json;charset=UTF-8' http://localhost:8080/topjava/rest/profile`
++
++#### get Profile
++`curl -s http://localhost:8080/topjava/rest/profile --user test@mail.ru:test-password`
++
+ #### get All Meals
+ `curl -s http://localhost:8080/topjava/rest/profile/meals --user user@yandex.ru:password`
+ 
+Index: src/main/webapp/WEB-INF/jsp/login.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/login.jsp b/src/main/webapp/WEB-INF/jsp/login.jsp
+--- a/src/main/webapp/WEB-INF/jsp/login.jsp	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/webapp/WEB-INF/jsp/login.jsp	(date 1702505015808)
+@@ -18,6 +18,7 @@
+         </c:if>
+         <sec:authorize access="isAnonymous()">
+             <div class="pt-2">
++                <a class="btn btn-lg btn-info mt-2" href="profile/register"><spring:message code="app.register"/> &raquo;</a>
+                 <button type="submit" class="btn btn-lg btn-primary mt-2" onclick="login('user@yandex.ru', 'password')">
+                     <spring:message code="app.login"/> User
+                 </button>
+@@ -57,10 +58,17 @@
+ </div>
+ <jsp:include page="fragments/footer.jsp"/>
+ <script type="text/javascript">
++    <c:if test="${not empty param.username}">
++    setCredentials("${param.username}", "");
++    </c:if>
++
+     function login(username, password) {
++        setCredentials(username, password);
++        $("#login_form").submit();
++    }
++    function setCredentials(username, password) {
+         $('input[name="username"]').val(username);
+         $('input[name="password"]').val(password);
+-        $("#login_form").submit();
+     }
+ </script>
+ </body>
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/config/messages/app_ru.properties	(date 1702505015778)
+@@ -7,6 +7,8 @@
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
+ app.profile=профиль
++app.register=Регистрация
++app.registered=Вы зарегистрированы. Введите ваш логин/пароль.
+ 
+ user.title=Пользователи
+ user.edit=Редактировать пользователя
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1702505015817)
+@@ -3,6 +3,7 @@
+ import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+@@ -46,6 +47,23 @@
+         USER_MATCHER.assertMatch(userService.getAll(), admin, guest);
+     }
+ 
++    @Test
++    void register() throws Exception {
++        UserTo newTo = new UserTo(null, "newName", "newemail@ya.ru", "newPassword", 1500);
++        User newUser = UsersUtil.createNewFromTo(newTo);
++        ResultActions action = perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(newTo)))
++                .andDo(print())
++                .andExpect(status().isCreated());
++
++        User created = USER_MATCHER.readFromJson(action);
++        int newId = created.id();
++        newUser.setId(newId);
++        USER_MATCHER.assertMatch(created, newUser);
++        USER_MATCHER.assertMatch(userService.get(newId), newUser);
++    }
++
+     @Test
+     void update() throws Exception {
+         UserTo updatedTo = new UserTo(null, "newName", "user@yandex.ru", "newPassword", 1500);
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1702505043764)
+@@ -16,7 +16,7 @@
+     <link rel="shortcut icon" href="resources/images/icon-meal.png">
+ 
+     <%--http://stackoverflow.com/a/24070373/548473--%>
+-    <script src="webjars/jquery/3.7.1/jquery.min.js" defer></script>
++    <script src="webjars/jquery/3.7.1/jquery.min.js"></script>
+     <script src="webjars/bootstrap/4.6.2/js/bootstrap.min.js" defer></script>
+     <script src="webjars/datatables/1.13.5/js/jquery.dataTables.min.js" defer></script>
+     <script src="webjars/datatables/1.13.5/js/dataTables.bootstrap4.min.js" defer></script>
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileRestController.java	(date 1702505015791)
+@@ -2,10 +2,14 @@
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
+ import org.springframework.web.bind.annotation.*;
++import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+ 
++import java.net.URI;
++
+ import static ru.javawebinar.topjava.web.SecurityUtil.authUserId;
+ 
+ @RestController
+@@ -24,6 +28,15 @@
+         super.delete(authUserId());
+     }
+ 
++    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
++    @ResponseStatus(HttpStatus.CREATED)
++    public ResponseEntity<User> register(@RequestBody UserTo userTo) {
++        User created = super.create(userTo);
++        URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
++                .path(REST_URL).build().toUri();
++        return ResponseEntity.created(uriOfNewResource).body(created);
++    }
++
+     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+     public void update(@RequestBody UserTo userTo) {
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-security.xml b/src/main/resources/spring/spring-security.xml
+--- a/src/main/resources/spring/spring-security.xml	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/src/main/resources/spring/spring-security.xml	(date 1702505015798)
+@@ -10,6 +10,7 @@
+     <http pattern="/rest/**" use-expressions="true" name="restSecurityFilterChain" create-session="stateless">
+         <http-basic/>
+         <intercept-url pattern="/rest/admin/**" access="hasRole('ADMIN')"/>
++        <intercept-url pattern="/rest/profile" method="POST" access="isAnonymous()"/>
+         <intercept-url pattern="/**" access="isAuthenticated()"/>
+         <csrf disabled="true"/>
+     </http>
+@@ -18,6 +19,7 @@
+ 
+     <http>
+         <intercept-url pattern="/login" access="permitAll()"/>
++        <intercept-url pattern="/profile/register" access="isAnonymous()"/>
+ 
+         <intercept-url pattern="/admin/**" access="hasRole('ADMIN')"/>
+         <intercept-url pattern="/**" access="isAuthenticated()"/>
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 9d03077326a5a67f45827a4c12c4f7f263066783)
++++ b/config/messages/app.properties	(date 1702505015773)
+@@ -7,6 +7,8 @@
+ app.footer=<a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> internship application
+ app.login=Login as
+ app.profile=profile
++app.register=Registration
++app.registered=You are registered. Please Sign in.
+ 
+ user.title=Users
+ user.edit=Edit user

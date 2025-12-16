@@ -1,0 +1,191 @@
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java
+new file mode 100644
+--- /dev/null	(date 1634767363448)
++++ b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryBaseRepository.java	(date 1634767363448)
+@@ -0,0 +1,36 @@
++package ru.javawebinar.topjava.repository.inmemory;
++
++import ru.javawebinar.topjava.model.AbstractBaseEntity;
++
++import java.util.Collection;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.AtomicInteger;
++
++public class InMemoryBaseRepository<T extends AbstractBaseEntity> {
++
++    private static final AtomicInteger counter = new AtomicInteger(0);
++
++    private final Map<Integer, T> map = new ConcurrentHashMap<>();
++
++    public T save(T entity) {
++        if (entity.isNew()) {
++            entity.setId(counter.incrementAndGet());
++            map.put(entity.getId(), entity);
++            return entity;
++        }
++        return map.computeIfPresent(entity.getId(), (id, oldT) -> entity);
++    }
++
++    public boolean delete(int id) {
++        return map.remove(id) != null;
++    }
++
++    public T get(int id) {
++        return map.get(id);
++    }
++
++    Collection<T> getCollection() {
++        return map.values();
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(revision 0bd64dc9fdc6050f0b4447bb0161dcb38056ac9f)
++++ b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(date 1634767507180)
+@@ -1,7 +1,6 @@
+ package ru.javawebinar.topjava.repository.inmemory;
+ 
+ import org.springframework.stereotype.Repository;
+-import org.springframework.util.CollectionUtils;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ import ru.javawebinar.topjava.util.MealsUtil;
+@@ -14,7 +13,6 @@
+ import java.util.List;
+ import java.util.Map;
+ import java.util.concurrent.ConcurrentHashMap;
+-import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+@@ -24,9 +22,8 @@
+ @Repository
+ public class InMemoryMealRepository implements MealRepository {
+ 
+-    // Map  userId -> (mealId-> meal)
+-    private final Map<Integer, Map<Integer, Meal>> usersMealsMap = new ConcurrentHashMap<>();
+-    private final AtomicInteger counter = new AtomicInteger(0);
++    // Map  userId -> mealRepository
++    private final Map<Integer, InMemoryBaseRepository<Meal>> usersMealsMap = new ConcurrentHashMap<>();
+ 
+     {
+         MealsUtil.meals.forEach(meal -> save(meal, USER_ID));
+@@ -37,25 +34,19 @@
+ 
+     @Override
+     public Meal save(Meal meal, int userId) {
+-        // We cannot use method reference "ConcurrentHashMap::new" here. It will be equivalent wrong "new ConcurrentHashMap<>(userId)"
+-        Map<Integer, Meal> meals = usersMealsMap.computeIfAbsent(userId, uId -> new ConcurrentHashMap<>());
+-        if (meal.isNew()) {
+-            meal.setId(counter.incrementAndGet());
+-            meals.put(meal.getId(), meal);
+-            return meal;
+-        }
+-        return meals.computeIfPresent(meal.getId(), (id, oldMeal) -> meal);
++        InMemoryBaseRepository<Meal> meals = usersMealsMap.computeIfAbsent(userId, uId -> new InMemoryBaseRepository<>());
++        return meals.save(meal);
+     }
+ 
+     @Override
+     public boolean delete(int id, int userId) {
+-        Map<Integer, Meal> meals = usersMealsMap.get(userId);
+-        return meals != null && meals.remove(id) != null;
++        InMemoryBaseRepository<Meal> meals = usersMealsMap.get(userId);
++        return meals != null && meals.delete(id);
+     }
+ 
+     @Override
+     public Meal get(int id, int userId) {
+-        Map<Integer, Meal> meals = usersMealsMap.get(userId);
++        InMemoryBaseRepository<Meal> meals = usersMealsMap.get(userId);
+         return meals == null ? null : meals.get(id);
+     }
+ 
+@@ -70,9 +61,9 @@
+     }
+ 
+     private List<Meal> filterByPredicate(int userId, Predicate<Meal> filter) {
+-        Map<Integer, Meal> meals = usersMealsMap.get(userId);
+-        return CollectionUtils.isEmpty(meals) ? Collections.emptyList() :
+-                meals.values().stream()
++        InMemoryBaseRepository<Meal> meals = usersMealsMap.get(userId);
++        return meals == null ? Collections.emptyList() :
++                meals.getCollection().stream()
+                         .filter(filter)
+                         .sorted(Comparator.comparing(Meal::getDateTime).reversed())
+                         .collect(Collectors.toList());
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(revision 0bd64dc9fdc6050f0b4447bb0161dcb38056ac9f)
++++ b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryUserRepository.java	(date 1634767374299)
+@@ -6,50 +6,24 @@
+ 
+ import java.util.Comparator;
+ import java.util.List;
+-import java.util.Map;
+-import java.util.concurrent.ConcurrentHashMap;
+-import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.stream.Collectors;
+ 
+ @Repository
+-public class InMemoryUserRepository implements UserRepository {
+-
+-    public static final int USER_ID = 1;
+-    public static final int ADMIN_ID = 2;
++public class InMemoryUserRepository extends InMemoryBaseRepository<User> implements UserRepository {
+ 
+-    private final Map<Integer, User> usersMap = new ConcurrentHashMap<>();
+-    private final AtomicInteger counter = new AtomicInteger(0);
+-
+-    @Override
+-    public User save(User user) {
+-        if (user.isNew()) {
+-            user.setId(counter.incrementAndGet());
+-            usersMap.put(user.getId(), user);
+-            return user;
+-        }
+-        return usersMap.computeIfPresent(user.getId(), (id, oldUser) -> user);
+-    }
+-
+-    @Override
+-    public boolean delete(int id) {
+-        return usersMap.remove(id) != null;
+-    }
+-
+-    @Override
+-    public User get(int id) {
+-        return usersMap.get(id);
+-    }
++    static final int USER_ID = 1;
++    static final int ADMIN_ID = 2;
+ 
+     @Override
+     public List<User> getAll() {
+-        return usersMap.values().stream()
++        return getCollection().stream()
+                 .sorted(Comparator.comparing(User::getName).thenComparing(User::getEmail))
+                 .collect(Collectors.toList());
+     }
+ 
+     @Override
+     public User getByEmail(String email) {
+-        return usersMap.values().stream()
++        return getCollection().stream()
+                 .filter(u -> email.equals(u.getEmail()))
+                 .findFirst()
+                 .orElse(null);

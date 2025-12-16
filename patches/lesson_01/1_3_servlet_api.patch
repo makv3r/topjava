@@ -1,0 +1,104 @@
+Subject: [PATCH] 1_3_servlet_api
+---
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision b66cf8f1b78374cba56a001dd2b6cc8d4da36143)
++++ b/pom.xml	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
+@@ -39,6 +39,13 @@
+     </build>
+ 
+     <dependencies>
++        <!--Web-->
++        <dependency>
++            <groupId>javax.servlet</groupId>
++            <artifactId>javax.servlet-api</artifactId>
++            <version>4.0.1</version>
++            <scope>provided</scope>
++        </dependency>
+     </dependencies>
+ 
+     <profiles>
+Index: src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+new file mode 100644
+--- /dev/null	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
++++ b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
+@@ -0,0 +1,16 @@
++package ru.javawebinar.topjava.web;
++
++import javax.servlet.ServletException;
++import javax.servlet.http.HttpServlet;
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++
++import java.io.IOException;
++
++public class UserServlet extends HttpServlet {
++
++    @Override
++    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
++        request.getRequestDispatcher("/users.jsp").forward(request, response);
++    }
++}
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/web.xml b/src/main/webapp/WEB-INF/web.xml
+--- a/src/main/webapp/WEB-INF/web.xml	(revision b66cf8f1b78374cba56a001dd2b6cc8d4da36143)
++++ b/src/main/webapp/WEB-INF/web.xml	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
+@@ -5,4 +5,14 @@
+          version="4.0">
+ 
+     <display-name>TopJava</display-name>
++
++    <servlet>
++        <servlet-name>userServlet</servlet-name>
++        <servlet-class>ru.javawebinar.topjava.web.UserServlet</servlet-class>
++        <load-on-startup>0</load-on-startup>
++    </servlet>
++    <servlet-mapping>
++        <servlet-name>userServlet</servlet-name>
++        <url-pattern>/users</url-pattern>
++    </servlet-mapping>
+ </web-app>
+Index: src/main/webapp/index.html
+===================================================================
+diff --git a/src/main/webapp/index.html b/src/main/webapp/index.html
+--- a/src/main/webapp/index.html	(revision b66cf8f1b78374cba56a001dd2b6cc8d4da36143)
++++ b/src/main/webapp/index.html	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
+@@ -5,5 +5,9 @@
+ </head>
+ <body>
+ <h3>Проект <a href="https://github.com/JavaWebinar/topjava" target="_blank">Java Enterprise (Topjava)</a></h3>
++<hr>
++<ul style="font-size: large">
++    <li><a href="users">Users</a></li>
++</ul>
+ </body>
+ </html>
+Index: src/main/webapp/users.jsp
+===================================================================
+diff --git a/src/main/webapp/users.jsp b/src/main/webapp/users.jsp
+new file mode 100644
+--- /dev/null	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
++++ b/src/main/webapp/users.jsp	(revision da73f1989923537c358a2b868be6eb2a406b3bf1)
+@@ -0,0 +1,11 @@
++<%@ page contentType="text/html;charset=UTF-8" %>
++<html lang="ru">
++<head>
++    <title>Users</title>
++</head>
++<body>
++<h3><a href="index.html">Home</a></h3>
++<hr>
++<h2>Users</h2>
++</body>
++</html>
+\ No newline at end of file

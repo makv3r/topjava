@@ -1,0 +1,70 @@
+Subject: [PATCH] 10_04_jquery_converters
+---
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.meals.js b/src/main/webapp/resources/js/topjava.meals.js
+--- a/src/main/webapp/resources/js/topjava.meals.js	(revision 8573d514a08b8dcba6eb4b18a5f5ff0ff4023f90)
++++ b/src/main/webapp/resources/js/topjava.meals.js	(date 1691497806942)
+@@ -17,17 +17,24 @@
+     $.get(mealAjaxUrl, updateTableByData);
+ }
+ 
++// http://api.jquery.com/jQuery.ajax/#using-converters
++$.ajaxSetup({
++    converters: {
++        "text json": function (stringData) {
++            return JSON.parse(stringData,
++                function (key, value) {
++                    return (key === 'dateTime') ? value.substring(0, 16).replace('T', ' ') : value;
++                }
++            );
++        }
++    }
++});
++
+ $(function () {
+     makeEditable({
+         "columns": [
+             {
+-                "data": "dateTime",
+-                "render": function (date, type, row) {
+-                    if (type === 'display') {
+-                        return formatDate(date);
+-                    }
+-                    return date;
+-                }
++                "data": "dateTime"
+             },
+             {
+                 "data": "description"
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision 8573d514a08b8dcba6eb4b18a5f5ff0ff4023f90)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1691497492866)
+@@ -33,18 +33,12 @@
+     $("#modalTitle").html(i18n["editTitle"]);
+     $.get(ctx.ajaxUrl + id, function (data) {
+         $.each(data, function (key, value) {
+-            form.find("input[name='" + key + "']").val(
+-                key === "dateTime" ? formatDate(value) : value
+-            );
++            form.find("input[name='" + key + "']").val(value);
+         });
+         $('#editRow').modal();
+     });
+ }
+ 
+-function formatDate(date) {
+-    return date.replace('T', ' ').substr(0, 16);
+-}
+-
+ function deleteRow(id) {
+     if (confirm(i18n['common.confirm'])) {
+         $.ajax({

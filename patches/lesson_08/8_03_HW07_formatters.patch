@@ -1,0 +1,156 @@
+Subject: [PATCH] 8_03_HW07_formatters
+---
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision af23ed88fb768cf6c8ffce67298ea792e46db268)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1743629222317)
+@@ -7,7 +7,7 @@
+ 
+     <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper" id="objectMapper" factory-method="getMapper"/>
+ 
+-    <mvc:annotation-driven>
++    <mvc:annotation-driven conversion-service="conversionService">
+         <mvc:message-converters>
+             <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+                 <property name="objectMapper" ref="objectMapper"/>
+@@ -23,6 +23,15 @@
+         </mvc:message-converters>
+     </mvc:annotation-driven>
+ 
++    <bean class="org.springframework.format.support.FormattingConversionServiceFactoryBean" id="conversionService">
++        <property name="formatters">
++            <set>
++                <bean class="ru.javawebinar.topjava.web.converter.DateTimeFormatters.LocalTimeFormatter"/>
++                <bean class="ru.javawebinar.topjava.web.converter.DateTimeFormatters.LocalDateFormatter"/>
++            </set>
++        </property>
++    </bean>
++
+     <context:component-scan base-package="ru.javawebinar.**.web"/>
+ 
+     <!--  all resources inside folder src/main/webapp/resources are mapped so they can be referred to inside JSP files -->
+Index: src/main/java/ru/javawebinar/topjava/web/converter/DateTimeFormatters.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/converter/DateTimeFormatters.java b/src/main/java/ru/javawebinar/topjava/web/converter/DateTimeFormatters.java
+new file mode 100644
+--- /dev/null	(date 1743629201232)
++++ b/src/main/java/ru/javawebinar/topjava/web/converter/DateTimeFormatters.java	(date 1743629201232)
+@@ -0,0 +1,36 @@
++package ru.javawebinar.topjava.web.converter;
++
++import org.springframework.format.Formatter;
++
++import java.time.LocalDate;
++import java.time.LocalTime;
++import java.time.format.DateTimeFormatter;
++import java.util.Locale;
++
++public class DateTimeFormatters {
++    public static class LocalDateFormatter implements Formatter<LocalDate> {
++
++        @Override
++        public LocalDate parse(String text, Locale locale) {
++            return LocalDate.parse(text);
++        }
++
++        @Override
++        public String print(LocalDate lt, Locale locale) {
++            return lt.format(DateTimeFormatter.ISO_LOCAL_DATE);
++        }
++    }
++
++    public static class LocalTimeFormatter implements Formatter<LocalTime> {
++
++        @Override
++        public LocalTime parse(String text, Locale locale) {
++            return LocalTime.parse(text);
++        }
++
++        @Override
++        public String print(LocalTime lt, Locale locale) {
++            return lt.format(DateTimeFormatter.ISO_LOCAL_TIME);
++        }
++    }
++}
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision af23ed88fb768cf6c8ffce67298ea792e46db268)
++++ b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1743629222323)
+@@ -81,9 +81,18 @@
+ 
+     @Test
+     void getBetween() throws Exception {
+-        perform(MockMvcRequestBuilders.get(REST_URL + "between?startDateTime=2020-01-30T07:00&endDateTime=2020-01-31T11:00:00"))
++        perform(MockMvcRequestBuilders.get(REST_URL + "filter")
++                .param("startDate", "2020-01-30").param("startTime", "07:00")
++                .param("endDate", "2020-01-31").param("endTime", "11:00"))
+                 .andExpect(status().isOk())
+                 .andDo(print())
+                 .andExpect(TO_MATCHER.contentJson(createTo(meal5, true), createTo(meal1, false)));
+     }
++
++    @Test
++    void getBetweenAll() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL + "filter?startDate=&endTime="))
++                .andExpect(status().isOk())
++                .andExpect(TO_MATCHER.contentJson(getTos(meals, user.getCaloriesPerDay())));
++    }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(revision af23ed88fb768cf6c8ffce67298ea792e46db268)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1743629455497)
+@@ -1,16 +1,17 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
+-import org.springframework.format.annotation.DateTimeFormat;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.lang.Nullable;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ 
+ import java.net.URI;
+-import java.time.LocalDateTime;
++import java.time.LocalDate;
++import java.time.LocalTime;
+ import java.util.List;
+ 
+ @RestController
+@@ -55,10 +56,13 @@
+         return ResponseEntity.created(uriOfNewResource).body(created);
+     }
+ 
+-    @GetMapping("/between")
++    @Override
++    @GetMapping("/filter")
+     public List<MealTo> getBetween(
+-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
+-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
+-        return super.getBetween(startDateTime.toLocalDate(), startDateTime.toLocalTime(), endDateTime.toLocalDate(), endDateTime.toLocalTime());
++            @RequestParam @Nullable LocalDate startDate,
++            @RequestParam @Nullable LocalTime startTime,
++            @RequestParam @Nullable LocalDate endDate,
++            @RequestParam @Nullable LocalTime endTime) {
++        return super.getBetween(startDate, startTime, endDate, endTime);
+     }
+ }

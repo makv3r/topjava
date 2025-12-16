@@ -1,0 +1,111 @@
+Index: src/main/webapp/WEB-INF/jsp/exception.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/exception.jsp	(date 1576089226249)
++++ src/main/webapp/WEB-INF/jsp/exception.jsp	(date 1576089226249)
+@@ -0,0 +1,26 @@
++<%@ page isErrorPage="true" contentType="text/html" pageEncoding="UTF-8" %>
++<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++
++<html>
++<jsp:include page="fragments/headTag.jsp"/>
++
++<body>
++<jsp:include page="fragments/bodyHeader.jsp"/>
++
++<div class="jumbotron">
++    <div class="container text-center">
++        <br>
++        <h4 class="my-3">${status}</h4>
++        <h2><spring:message code="common.appError"/></h2>
++        <h4 class="my-5">${message}</h4>
++    </div>
++</div>
++<!--
++<c:forEach items="${exception.stackTrace}" var="stackTrace">
++    ${stackTrace}
++</c:forEach>
++-->
++<jsp:include page="fragments/footer.jsp"/>
++</body>
++</html>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(date 1576088698332)
++++ src/main/java/ru/javawebinar/topjava/web/GlobalExceptionHandler.java	(date 1576088698332)
+@@ -0,0 +1,36 @@
++package ru.javawebinar.topjava.web;
++
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ControllerAdvice;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++import org.springframework.web.servlet.ModelAndView;
++import ru.javawebinar.topjava.AuthorizedUser;
++import ru.javawebinar.topjava.util.ValidationUtil;
++
++import javax.servlet.http.HttpServletRequest;
++import java.util.Map;
++
++@ControllerAdvice
++public class GlobalExceptionHandler {
++    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
++
++    @ExceptionHandler(Exception.class)
++    public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e) throws Exception {
++        log.error("Exception at request " + req.getRequestURL(), e);
++        Throwable rootCause = ValidationUtil.getRootCause(e);
++
++        HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
++        ModelAndView mav = new ModelAndView("exception",
++                Map.of("exception", rootCause, "message", rootCause.toString(), "status", httpStatus));
++        mav.setStatus(httpStatus);
++
++        // Interceptor is not invoked, put userTo
++        AuthorizedUser authorizedUser = SecurityUtil.safeGet();
++        if (authorizedUser != null) {
++            mav.addObject("userTo", authorizedUser.getUserTo());
++        }
++        return mav;
++    }
++}
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app.properties	(date 1576079917000)
++++ config/messages/app.properties	(date 1576079945607)
+@@ -35,6 +35,7 @@
+ common.enabled=Record enabled
+ common.disabled=Record disabled
+ common.errorStatus=Error status
++common.appError=Application error
+ common.confirm=Are you sure?
+ common.save=Save
+ common.cancel=Cancel
+\ No newline at end of file
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- config/messages/app_ru.properties	(date 1576079917000)
++++ config/messages/app_ru.properties	(date 1576079945614)
+@@ -35,6 +35,7 @@
+ common.enabled=Запись активирована
+ common.disabled=Запись деактивирована
+ common.errorStatus=Статус ошибки
++common.appError=Ошибка приложения
+ common.confirm=Вы уверены?
+ common.save=Сохранить
+ common.cancel=Отменить
+\ No newline at end of file

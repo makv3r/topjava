@@ -1,0 +1,353 @@
+Subject: [PATCH] 2_1_HW1
+---
+Index: src/main/java/ru/javawebinar/topjava/util/TimeUtil.java
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java b/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java
+deleted file mode 100644
+--- a/src/main/java/ru/javawebinar/topjava/util/TimeUtil.java	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ /dev/null	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
+@@ -1,9 +0,0 @@
+-package ru.javawebinar.topjava.util;
+-
+-import java.time.LocalTime;
+-
+-public class TimeUtil {
+-    public static boolean isBetweenHalfOpen(LocalTime lt, LocalTime startTime, LocalTime endTime) {
+-        return !lt.isBefore(startTime) && lt.isBefore(endTime);
+-    }
+-}
+Index: src/main/java/ru/javawebinar/topjava/Main.java
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/Main.java b/src/main/java/ru/javawebinar/topjava/Main.java
+deleted file mode 100644
+--- a/src/main/java/ru/javawebinar/topjava/Main.java	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ /dev/null	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
+@@ -1,11 +0,0 @@
+-package ru.javawebinar.topjava;
+-
+-/**
+- * @see <a href="https://javaops-demo.ru/topjava">Demo application</a>
+- * @see <a href="https://github.com/JavaOPs/topjava">Initial project</a>
+- */
+-public class Main {
+-    public static void main(String[] args) {
+-        System.out.format("Hello TopJava Enterprise!");
+-    }
+-}
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/web.xml b/src/main/webapp/WEB-INF/web.xml
+--- a/src/main/webapp/WEB-INF/web.xml	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ b/src/main/webapp/WEB-INF/web.xml	(date 1749719444972)
+@@ -15,4 +15,14 @@
+         <servlet-name>userServlet</servlet-name>
+         <url-pattern>/users</url-pattern>
+     </servlet-mapping>
++
++    <servlet>
++        <servlet-name>mealServlet</servlet-name>
++        <servlet-class>ru.javawebinar.topjava.web.MealServlet</servlet-class>
++        <load-on-startup>0</load-on-startup>
++    </servlet>
++    <servlet-mapping>
++        <servlet-name>mealServlet</servlet-name>
++        <url-pattern>/meals</url-pattern>
++    </servlet-mapping>
+ </web-app>
+Index: src/main/webapp/index.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/index.html b/src/main/webapp/index.html
+--- a/src/main/webapp/index.html	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ b/src/main/webapp/index.html	(date 1749719445021)
+@@ -8,6 +8,7 @@
+ <hr>
+ <ul style="font-size: large">
+     <li><a href="users">Users</a></li>
++    <li><a href="meals">Meals</a></li>
+ </ul>
+ </body>
+ </html>
+Index: src/main/webapp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/meals.jsp b/src/main/webapp/meals.jsp
+new file mode 100644
+--- /dev/null	(date 1749719445038)
++++ b/src/main/webapp/meals.jsp	(date 1749719445038)
+@@ -0,0 +1,48 @@
++<%@ page contentType="text/html;charset=UTF-8" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++<%@ taglib prefix="fn" uri="http://topjava.javawebinar.ru/functions" %>
++<%--<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions"%>--%>
++<html>
++<head>
++    <title>Meal list</title>
++    <style>
++        .normal {
++            color: green;
++        }
++
++        .excess {
++            color: red;
++        }
++    </style>
++</head>
++<body>
++<section>
++    <h3><a href="index.html">Home</a></h3>
++    <hr/>
++    <h2>Meals</h2>
++    <table border="1" cellpadding="8" cellspacing="0">
++        <thead>
++        <tr>
++            <th>Date</th>
++            <th>Description</th>
++            <th>Calories</th>
++        </tr>
++        </thead>
++        <c:forEach items="${requestScope.meals}" var="meal">
++            <jsp:useBean id="meal" type="ru.javawebinar.topjava.model.MealTo"/>
++            <tr class="${meal.excess ? 'excess' : 'normal'}">
++                <td>
++                        <%--${meal.dateTime.toLocalDate()} ${meal.dateTime.toLocalTime()}--%>
++                        <%--<%=TimeUtil.toString(meal.getDateTime())%>--%>
++                        <%--${fn:replace(meal.dateTime, 'T', ' ')}--%>
++                        ${fn:formatDateTime(meal.dateTime)}
++                </td>
++                <td>${meal.description}</td>
++                <td>${meal.calories}</td>
++            </tr>
++        </c:forEach>
++    </table>
++</section>
++</body>
++</html>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/tld/functions.tld
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/tld/functions.tld b/src/main/webapp/WEB-INF/tld/functions.tld
+new file mode 100644
+--- /dev/null	(date 1749719444965)
++++ b/src/main/webapp/WEB-INF/tld/functions.tld	(date 1749719444965)
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<taglib version="2.1"
++        xmlns="http://java.sun.com/xml/ns/javaee"
++        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++        xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd">
++
++    <tlib-version>1.0</tlib-version>
++    <short-name>functions</short-name>
++    <uri>http://topjava.javawebinar.ru/functions</uri>
++
++    <function>
++        <name>formatDateTime</name>
++        <function-class>ru.javawebinar.topjava.util.DateTimeUtil</function-class>
++        <function-signature>java.lang.String toString(java.time.LocalDateTime)</function-signature>
++    </function>
++</taglib>
+Index: src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(date 1749719444956)
+@@ -15,9 +15,7 @@
+ 
+     @Override
+     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        log.debug("redirect to users");
+-
+-//        request.getRequestDispatcher("/users.jsp").forward(request, response);
+-        response.sendRedirect("users.jsp");
++        log.debug("forward to users");
++        request.getRequestDispatcher("/users.jsp").forward(request, response);
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+new file mode 100644
+--- /dev/null	(date 1749719444949)
++++ b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1749719444949)
+@@ -0,0 +1,22 @@
++package ru.javawebinar.topjava.web;
++
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import ru.javawebinar.topjava.util.MealsUtil;
++
++import javax.servlet.ServletException;
++import javax.servlet.http.HttpServlet;
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++import java.io.IOException;
++
++public class MealServlet extends HttpServlet {
++    private static final Logger log = LoggerFactory.getLogger(MealServlet.class);
++
++    @Override
++    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
++        log.info("forward to meals");
++        request.setAttribute("meals", MealsUtil.getTos(MealsUtil.meals, MealsUtil.DEFAULT_CALORIES_PER_DAY));
++        request.getRequestDispatcher("/meals.jsp").forward(request, response);
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1749719444874)
+@@ -10,25 +10,31 @@
+ import java.util.Arrays;
+ import java.util.List;
+ import java.util.Map;
++import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+ public class MealsUtil {
+-    public static void main(String[] args) {
+-        List<Meal> meals = Arrays.asList(
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500),
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000),
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500),
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 0, 0), "Еда на граничное значение", 100),
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 10, 0), "Завтрак", 1000),
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
+-                new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
+-        );
++    public static final int DEFAULT_CALORIES_PER_DAY = 2000;
++
++    public static final List<Meal> meals = Arrays.asList(
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500),
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000),
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500),
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 0, 0), "Еда на граничное значение", 100),
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 10, 0), "Завтрак", 1000),
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
++            new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
++    );
+ 
+-        List<MealTo> mealsTo = filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000);
+-        mealsTo.forEach(System.out::println);
++    public static List<MealTo> getTos(List<Meal> meals, int caloriesPerDay) {
++        return filterByPredicate(meals, caloriesPerDay, meal -> true);
++    }
++
++    public static List<MealTo> getFilteredTos(List<Meal> meals, int caloriesPerDay, LocalTime startTime, LocalTime endTime) {
++        return filterByPredicate(meals, caloriesPerDay, meal -> DateTimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime));
+     }
+ 
+-    public static List<MealTo> filteredByStreams(List<Meal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
++    private static List<MealTo> filterByPredicate(List<Meal> meals, int caloriesPerDay, Predicate<Meal> filter) {
+         Map<LocalDate, Integer> caloriesSumByDate = meals.stream()
+                 .collect(
+                         Collectors.groupingBy(Meal::getDate, Collectors.summingInt(Meal::getCalories))
+@@ -36,7 +42,7 @@
+                 );
+ 
+         return meals.stream()
+-                .filter(meal -> TimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime))
++                .filter(filter)
+                 .map(meal -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay))
+                 .collect(Collectors.toList());
+     }
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ b/pom.xml	(date 1749719445045)
+@@ -63,6 +63,12 @@
+             <version>4.0.1</version>
+             <scope>provided</scope>
+         </dependency>
++
++        <dependency>
++            <groupId>javax.servlet</groupId>
++            <artifactId>jstl</artifactId>
++            <version>1.2</version>
++        </dependency>
+     </dependencies>
+ 
+     <profiles>
+Index: src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+new file mode 100644
+--- /dev/null	(date 1749719522798)
++++ b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(date 1749719522798)
+@@ -0,0 +1,17 @@
++package ru.javawebinar.topjava.util;
++
++import java.time.LocalDateTime;
++import java.time.LocalTime;
++import java.time.format.DateTimeFormatter;
++
++public class DateTimeUtil {
++    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
++
++    public static boolean isBetweenHalfOpen(LocalTime lt, LocalTime startTime, LocalTime endTime) {
++        return !lt.isBefore(startTime) && lt.isBefore(endTime);
++    }
++
++    public static String toString(LocalDateTime ldt) {
++        return ldt == null ? "" : ldt.format(DATE_TIME_FORMATTER);
++    }
++}
+Index: src/main/java/ru/javawebinar/topjava/model/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/MealTo.java b/src/main/java/ru/javawebinar/topjava/model/MealTo.java
+--- a/src/main/java/ru/javawebinar/topjava/model/MealTo.java	(revision faa96ecfe29703a597d9a1ec38858318bd2b0980)
++++ b/src/main/java/ru/javawebinar/topjava/model/MealTo.java	(date 1749719444858)
+@@ -18,6 +18,22 @@
+         this.excess = excess;
+     }
+ 
++    public LocalDateTime getDateTime() {
++        return dateTime;
++    }
++
++    public String getDescription() {
++        return description;
++    }
++
++    public int getCalories() {
++        return calories;
++    }
++
++    public boolean isExcess() {
++        return excess;
++    }
++
+     @Override
+     public String toString() {
+         return "MealTo{" +

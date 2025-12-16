@@ -1,0 +1,29 @@
+Subject: [PATCH] 8_0_unused_import
+---
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(revision f708e9b98c3d062a880178e26c888b2679193c9c)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealRestController.java	(date 1743628911909)
+@@ -1,18 +1,6 @@
+ package ru.javawebinar.topjava.web.meal;
+ 
+ import org.springframework.stereotype.Controller;
+-import ru.javawebinar.topjava.model.Meal;
+-import ru.javawebinar.topjava.service.MealService;
+-import ru.javawebinar.topjava.to.MealTo;
+-import ru.javawebinar.topjava.util.MealsUtil;
+-import ru.javawebinar.topjava.web.SecurityUtil;
+-
+-import java.time.LocalDate;
+-import java.time.LocalTime;
+-import java.util.List;
+-
+-import static ru.javawebinar.topjava.util.ValidationUtil.assureIdConsistent;
+-import static ru.javawebinar.topjava.util.ValidationUtil.checkIsNew;
+ 
+ @Controller
+ public class MealRestController extends AbstractMealController {

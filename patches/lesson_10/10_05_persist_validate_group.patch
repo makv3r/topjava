@@ -1,0 +1,57 @@
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 5125acac2262fe9e693d95210c5418c0407d0ff4)
++++ src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1586971572775)
+@@ -4,6 +4,7 @@
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.format.annotation.DateTimeFormat;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.util.DateTimeUtil;
+ 
+ import javax.persistence.*;
+@@ -47,7 +48,7 @@
+     @ManyToOne(fetch = FetchType.LAZY)
+     @JoinColumn(name = "user_id", nullable = false)
+     @OnDelete(action = OnDeleteAction.CASCADE)
+-//    @NotNull
++    @NotNull(groups = View.Persist.class)
+     private User user;
+ 
+     public Meal() {
+Index: src/main/java/ru/javawebinar/topjava/View.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/View.java	(date 1586971572808)
++++ src/main/java/ru/javawebinar/topjava/View.java	(date 1586971572808)
+@@ -0,0 +1,7 @@
++package ru.javawebinar.topjava;
++
++import javax.validation.groups.Default;
++
++public class View {
++    public interface Persist extends Default {}
++}
+\ No newline at end of file
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-db.xml	(revision 5125acac2262fe9e693d95210c5418c0407d0ff4)
++++ src/main/resources/spring/spring-db.xml	(date 1586971549321)
+@@ -93,6 +93,9 @@
+                     <entry key="#{T(org.hibernate.cache.jcache.ConfigSettings).PROVIDER}" value="org.ehcache.jsr107.EhcacheCachingProvider"/>
+                     <entry key="#{T(org.hibernate.cfg.AvailableSettings).USE_SECOND_LEVEL_CACHE}" value="true"/>
+                     <entry key="#{T(org.hibernate.cfg.AvailableSettings).USE_QUERY_CACHE}" value="false"/> <!--default-->
++
++                    <entry key="javax.persistence.validation.group.pre-persist" value="ru.javawebinar.topjava.View$Persist"/>
++                    <entry key="javax.persistence.validation.group.pre-update" value="ru.javawebinar.topjava.View$Persist"/>
+ <!--
+                     <entry key="#{T(org.hibernate.cfg.AvailableSettings).HBM2DDL_SCRIPTS_ACTION}" value="drop-and-create"/>
+                     <entry key="#{T(org.hibernate.cfg.AvailableSettings).HBM2DDL_SCRIPTS_CREATE_TARGET}" value="${TOPJAVA_ROOT}/config/ddl/create.ddl"/>

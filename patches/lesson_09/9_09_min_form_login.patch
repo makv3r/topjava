@@ -1,0 +1,40 @@
+Index: src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(revision 4e03e4833461597ab92ada1ae5d946e209d5e8b6)
++++ src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(date 1596622513070)
+@@ -6,8 +6,8 @@
+         <a href="meals" class="navbar-brand"><img src="resources/images/icon-meal.png"> <spring:message code="app.title"/></a>
+         <form class="form-inline my-2">
+             <a class="btn btn-info mr-1" href="users"><spring:message code="user.title"/></a>
+-            <a class="btn btn-primary" href="">
+-                <span class="fa fa-sign-in"></span>
++            <a class="btn btn-primary" href="logout">
++                <span class="fa fa-sign-out"></span>
+             </a>
+         </form>
+     </div>
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-security.xml	(revision 4e03e4833461597ab92ada1ae5d946e209d5e8b6)
++++ src/main/resources/spring/spring-security.xml	(date 1596624555765)
+@@ -16,6 +16,14 @@
+ 
+     <beans:bean name="noopEncoder" class="org.springframework.security.crypto.password.NoOpPasswordEncoder"/>
+ 
++    <http>
++        <intercept-url pattern="/admin/**" access="hasRole('ADMIN')"/>
++        <intercept-url pattern="/**" access="isAuthenticated()"/>
++        <form-login/>
++        <logout/>
++        <csrf disabled="true"/>
++    </http>
++
+     <authentication-manager>
+         <authentication-provider>
+             <password-encoder ref="noopEncoder"/>

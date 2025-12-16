@@ -1,0 +1,95 @@
+Subject: [PATCH] 11_16_HW_fix_swagger
+---
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+--- a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision 1566098eb590b822b8ef168a90769840cd53e415)
++++ b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision 9f01fd9e847d7e8cf55cac7b0648acebf21c007d)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
++import io.swagger.annotations.ApiModelProperty;
+ import ru.javawebinar.topjava.HasId;
+ 
+ import javax.persistence.*;
+@@ -19,6 +20,7 @@
+     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "global_seq")
+ //  See https://hibernate.atlassian.net/browse/HHH-3718 and https://hibernate.atlassian.net/browse/HHH-12034
+ //  Proxy initialization when accessing its identifier managed now by JPA_PROXY_COMPLIANCE setting
++    @ApiModelProperty(hidden = true)
+     protected Integer id;
+ 
+     protected AbstractBaseEntity() {
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 1566098eb590b822b8ef168a90769840cd53e415)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 9f01fd9e847d7e8cf55cac7b0648acebf21c007d)
+@@ -1,6 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
+-import com.fasterxml.jackson.annotation.JsonBackReference;
++import com.fasterxml.jackson.annotation.JsonIgnore;
+ import org.hibernate.annotations.OnDelete;
+ import org.hibernate.annotations.OnDeleteAction;
+ import org.hibernate.validator.constraints.Range;
+@@ -53,7 +53,7 @@
+     @ManyToOne(fetch = FetchType.LAZY)
+     @JoinColumn(name = "user_id", nullable = false)
+     @OnDelete(action = OnDeleteAction.CASCADE)
+-    @JsonBackReference
++    @JsonIgnore
+     @NotNull(groups = View.Persist.class)
+     private User user;
+ 
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 1566098eb590b822b8ef168a90769840cd53e415)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 9f01fd9e847d7e8cf55cac7b0648acebf21c007d)
+@@ -1,7 +1,7 @@
+ package ru.javawebinar.topjava.model;
+ 
+-import com.fasterxml.jackson.annotation.JsonManagedReference;
+ import com.fasterxml.jackson.annotation.JsonProperty;
++import io.swagger.annotations.ApiModelProperty;
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.*;
+ import org.hibernate.validator.constraints.Range;
+@@ -79,7 +79,7 @@
+     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
+     @OrderBy("dateTime DESC")
+     @OnDelete(action = OnDeleteAction.CASCADE) //https://stackoverflow.com/a/44988100/548473
+-    @JsonManagedReference
++    @ApiModelProperty(hidden = true)
+     private List<Meal> meals;
+ 
+     public User() {
+Index: src/main/java/ru/javawebinar/topjava/to/BaseTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/BaseTo.java b/src/main/java/ru/javawebinar/topjava/to/BaseTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/BaseTo.java	(revision 1566098eb590b822b8ef168a90769840cd53e415)
++++ b/src/main/java/ru/javawebinar/topjava/to/BaseTo.java	(revision 9f01fd9e847d7e8cf55cac7b0648acebf21c007d)
+@@ -1,8 +1,10 @@
+ package ru.javawebinar.topjava.to;
+ 
++import io.swagger.annotations.ApiModelProperty;
+ import ru.javawebinar.topjava.HasId;
+ 
+ public abstract class BaseTo implements HasId {
++    @ApiModelProperty(hidden = true)
+     protected Integer id;
+ 
+     public BaseTo() {

@@ -1,0 +1,118 @@
+Subject: [PATCH] 8_11_notification
+---
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision ac2ddea426eaccea92cd5bec8fc0b83a43d473f4)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1701288940515)
+@@ -50,7 +50,7 @@
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h4 class="modal-title"><spring:message code="user.add"/></h4>
+-                <button type="button" class="close" data-dismiss="modal">&times;</button>
++                <button type="button" class="close" data-dismiss="modal" onclick="closeNoty()">&times;</button>
+             </div>
+             <div class="modal-body">
+                 <form id="detailsForm">
+@@ -76,7 +76,7 @@
+                 </form>
+             </div>
+             <div class="modal-footer">
+-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
++                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="closeNoty()">
+                     <span class="fa fa-close"></span>
+                     <spring:message code="common.cancel"/>
+                 </button>
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision ac2ddea426eaccea92cd5bec8fc0b83a43d473f4)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1701288940502)
+@@ -11,6 +11,7 @@
+     <link rel="stylesheet" href="webjars/bootstrap/4.6.2/css/bootstrap.min.css">
+     <link rel="stylesheet" href="webjars/noty/3.1.4/demo/font-awesome/css/font-awesome.min.css">
+     <link rel="stylesheet" href="webjars/datatables/1.13.5/css/dataTables.bootstrap4.min.css">
++    <link rel="stylesheet" href="webjars/noty/3.1.4/lib/noty.css"/>
+     <link rel="shortcut icon" href="resources/images/icon-meal.png">
+ 
+     <%--http://stackoverflow.com/a/24070373/548473--%>
+@@ -18,4 +19,5 @@
+     <script src="webjars/bootstrap/4.6.2/js/bootstrap.min.js" defer></script>
+     <script src="webjars/datatables/1.13.5/js/jquery.dataTables.min.js" defer></script>
+     <script src="webjars/datatables/1.13.5/js/dataTables.bootstrap4.min.js" defer></script>
++    <script src="webjars/noty/3.1.4/lib/noty.min.js" defer></script>
+ </head>
+\ No newline at end of file
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision ac2ddea426eaccea92cd5bec8fc0b83a43d473f4)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1701288913528)
+@@ -8,6 +8,13 @@
+             deleteRow($(this).closest('tr').attr("id"));
+         }
+     });
++
++    $(document).ajaxError(function (event, jqXHR, options, jsExc) {
++        failNoty(jqXHR);
++    });
++
++    // solve problem with cache in IE: https://stackoverflow.com/a/4303862/548473
++    $.ajaxSetup({cache: false});
+ }
+ 
+ function add() {
+@@ -21,6 +28,7 @@
+         type: "DELETE"
+     }).done(function () {
+         updateTable();
++        successNoty("Deleted");
+     });
+ }
+ 
+@@ -38,5 +46,35 @@
+     }).done(function () {
+         $("#editRow").modal("hide");
+         updateTable();
++        successNoty("Saved");
+     });
++}
++
++let failedNote;
++
++function closeNoty() {
++    if (failedNote) {
++        failedNote.close();
++        failedNote = undefined;
++    }
++}
++
++function successNoty(text) {
++    closeNoty();
++    new Noty({
++        text: "<span class='fa fa-lg fa-check'></span> &nbsp;" + text,
++        type: 'success',
++        layout: "bottomRight",
++        timeout: 1000
++    }).show();
++}
++
++function failNoty(jqXHR) {
++    closeNoty();
++    failedNote = new Noty({
++        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status,
++        type: "error",
++        layout: "bottomRight"
++    });
++    failedNote.show()
+ }
+\ No newline at end of file

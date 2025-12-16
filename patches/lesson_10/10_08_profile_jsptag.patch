@@ -1,0 +1,305 @@
+Subject: [PATCH] 10_08_profile_jsptag
+---
+Index: src/main/java/ru/javawebinar/topjava/util/UsersUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java b/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/main/java/ru/javawebinar/topjava/util/UsersUtil.java	(date 1681337291754)
+@@ -9,7 +9,7 @@
+     public static final int DEFAULT_CALORIES_PER_DAY = 2000;
+ 
+     public static User createNewFromTo(UserTo userTo) {
+-        return new User(null, userTo.getName(), userTo.getEmail().toLowerCase(), userTo.getPassword(), Role.USER);
++        return new User(null, userTo.getName(), userTo.getEmail().toLowerCase(), userTo.getPassword(), userTo.getCaloriesPerDay(), Role.USER);
+     }
+ 
+     public static UserTo asTo(User user) {
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1681337291779)
+@@ -33,7 +33,7 @@
+     @Test
+     void duplicateMailCreate() {
+         assertThrows(DataAccessException.class, () ->
+-                service.create(new User(null, "Duplicate", "user@yandex.ru", "newPass", Role.USER)));
++                service.create(new User(null, "Duplicate", "user@yandex.ru", "newPass", 2000, Role.USER)));
+     }
+ 
+     @Test
+@@ -79,9 +79,9 @@
+ 
+     @Test
+     void createWithException() throws Exception {
+-        validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "  ", "mail@yandex.ru", "password", Role.USER)));
+-        validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "  ", "password", Role.USER)));
+-        validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "  ", Role.USER)));
++        validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "  ", "mail@yandex.ru", "password", 2000, Role.USER)));
++        validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "  ", "password", 2000, Role.USER)));
++        validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "  ", 2000, Role.USER)));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "password", 9, true, new Date(), Set.of())));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "password", 10001, true, new Date(), Set.of())));
+     }
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/config/messages/app.properties	(date 1681337267294)
+@@ -17,6 +17,7 @@
+ user.active=Active
+ user.registered=Registered
+ user.password=Password
++user.caloriesPerDay=Daily calorie limit
+ 
+ meal.title=Meals
+ meal.edit=Edit meal
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/config/messages/app_ru.properties	(date 1681337267299)
+@@ -17,6 +17,7 @@
+ user.active=Активный
+ user.registered=Зарегистрирован
+ user.password=Пароль
++user.caloriesPerDay=Норма калорий в день
+ 
+ meal.title=Моя еда
+ meal.edit=Редактировать еду
+Index: src/main/webapp/WEB-INF/tags/inputField.tag
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/tags/inputField.tag b/src/main/webapp/WEB-INF/tags/inputField.tag
+new file mode 100644
+--- /dev/null	(date 1681337291776)
++++ b/src/main/webapp/WEB-INF/tags/inputField.tag	(date 1681337291776)
+@@ -0,0 +1,15 @@
++<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
++
++<%@ attribute name="name" required="true" description="Name of corresponding property in bean object" %>
++<%@ attribute name="labelCode" required="true" description="Field label" %>
++<%@ attribute name="inputType" required="false" description="Input type" %>
++
++<spring:bind path="${name}">
++    <div class="form-group ${status.error ? 'error' : '' }">
++        <label class="col-form-label"><spring:message code="${labelCode}"/></label>
++        <form:input path="${name}" type="${(empty inputType)?'text':inputType}" class="form-control ${status.error ? 'is-invalid' : '' }"/>
++        <div class="invalid-feedback">${status.errorMessage}</div>
++    </div>
++</spring:bind>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/UserTo.java b/src/main/java/ru/javawebinar/topjava/to/UserTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1681337291750)
+@@ -66,6 +66,10 @@
+         this.email = email;
+     }
+ 
++    public void setCaloriesPerDay(Integer caloriesPerDay) {
++        this.caloriesPerDay = caloriesPerDay;
++    }
++
+     public Integer getCaloriesPerDay() {
+         return caloriesPerDay;
+     }
+Index: src/main/webapp/WEB-INF/jsp/profile.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/profile.jsp b/src/main/webapp/WEB-INF/jsp/profile.jsp
+new file mode 100644
+--- /dev/null	(date 1681337291771)
++++ b/src/main/webapp/WEB-INF/jsp/profile.jsp	(date 1681337291771)
+@@ -0,0 +1,43 @@
++<%@ page contentType="text/html" pageEncoding="UTF-8" %>
++<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
++<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
++<%@ taglib prefix="topjava" tagdir="/WEB-INF/tags" %>
++
++<html>
++<jsp:include page="fragments/headTag.jsp"/>
++
++<body>
++<jsp:include page="fragments/bodyHeader.jsp"/>
++
++<div class="jumbotron pt-4">
++    <div class="container">
++        <%--@elvariable id="userTo" type="ru.javawebinar.topjava.to.UserTo"--%>
++        <div class="row">
++            <div class="col-5 offset-3">
++                <h3>${userTo.name} <spring:message code="app.profile"/></h3>
++                <form:form class="form-group" modelAttribute="userTo" method="post" action="profile"
++                           charset="utf-8" accept-charset="UTF-8">
++
++                    <topjava:inputField labelCode="user.name" name="name"/>
++                    <topjava:inputField labelCode="user.email" name="email"/>
++                    <topjava:inputField labelCode="user.password" name="password" inputType="password"/>
++                    <topjava:inputField labelCode="user.caloriesPerDay" name="caloriesPerDay" inputType="number"/>
++
++                    <div class="text-right">
++                        <a class="btn btn-secondary" href="#" onclick="window.history.back()">
++                            <span class="fa fa-close"></span>
++                            <spring:message code="common.cancel"/>
++                        </a>
++                        <button type="submit" class="btn btn-primary">
++                            <span class="fa fa-check"></span>
++                            <spring:message code="common.save"/>
++                        </button>
++                    </div>
++                </form:form>
++            </div>
++        </div>
++    </div>
++</div>
++<jsp:include page="fragments/footer.jsp"/>
++</body>
++</html>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+new file mode 100644
+--- /dev/null	(date 1681337291760)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1681337291760)
+@@ -0,0 +1,34 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.springframework.stereotype.Controller;
++import org.springframework.validation.BindingResult;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.PostMapping;
++import org.springframework.web.bind.annotation.RequestMapping;
++import org.springframework.web.bind.support.SessionStatus;
++import ru.javawebinar.topjava.to.UserTo;
++import ru.javawebinar.topjava.web.SecurityUtil;
++
++import javax.validation.Valid;
++
++@Controller
++@RequestMapping("/profile")
++public class ProfileUIController extends AbstractUserController {
++
++    @GetMapping
++    public String profile() {
++        return "profile";
++    }
++
++    @PostMapping
++    public String updateProfile(@Valid UserTo userTo, BindingResult result, SessionStatus status) {
++        if (result.hasErrors()) {
++            return "profile";
++        } else {
++            super.update(userTo, SecurityUtil.authUserId());
++            SecurityUtil.get().update(userTo);
++            status.setComplete();
++            return "redirect:/meals";
++        }
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1681337338024)
+@@ -81,8 +81,8 @@
+         this(u.id, u.name, u.email, u.password, u.caloriesPerDay, u.enabled, u.registered, u.roles);
+     }
+ 
+-    public User(Integer id, String name, String email, String password, Role... roles) {
+-        this(id, name, email, password, DEFAULT_CALORIES_PER_DAY, true, new Date(), List.of(roles));
++    public User(Integer id, String name, String email, String password, int caloriesPerDay, Role... roles) {
++        this(id, name, email, password, caloriesPerDay, true, new Date(), List.of(roles));
+     }
+ 
+     public User(Integer id, String name, String email, String password, int caloriesPerDay, boolean enabled, Date registered, Collection<Role> roles) {
+Index: src/main/resources/db/populateDB.sql
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/db/populateDB.sql b/src/main/resources/db/populateDB.sql
+--- a/src/main/resources/db/populateDB.sql	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/main/resources/db/populateDB.sql	(date 1681337291765)
+@@ -3,10 +3,10 @@
+ DELETE FROM users;
+ ALTER SEQUENCE global_seq RESTART WITH 100000;
+ 
+-INSERT INTO users (name, email, password)
+-VALUES ('User', 'user@yandex.ru', 'password'),
+-       ('Admin', 'admin@gmail.com', 'admin'),
+-       ('Guest', 'guest@gmail.com', 'guest');
++INSERT INTO users (name, email, password, calories_per_day)
++VALUES ('User', 'user@yandex.ru', 'password', 2005),
++       ('Admin', 'admin@gmail.com', 'admin', 1900),
++       ('Guest', 'guest@gmail.com', 'guest', 2000);
+ 
+ INSERT INTO user_role (role, user_id)
+ VALUES ('USER', 100000),
+Index: src/test/java/ru/javawebinar/topjava/SpringMain.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/SpringMain.java b/src/test/java/ru/javawebinar/topjava/SpringMain.java
+--- a/src/test/java/ru/javawebinar/topjava/SpringMain.java	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/test/java/ru/javawebinar/topjava/SpringMain.java	(date 1681337291784)
+@@ -23,7 +23,7 @@
+         try (ConfigurableApplicationContext appCtx = new ClassPathXmlApplicationContext("spring/inmemory.xml")) {
+             System.out.println("Bean definition names: " + Arrays.toString(appCtx.getBeanDefinitionNames()));
+             AdminRestController adminUserController = appCtx.getBean(AdminRestController.class);
+-            adminUserController.create(new User(null, "userName", "email@mail.ru", "password", Role.ADMIN));
++            adminUserController.create(new User(null, "userName", "email@mail.ru", "password", 2000, Role.ADMIN));
+             System.out.println();
+ 
+             mockAuthorize(user);
+Index: src/test/java/ru/javawebinar/topjava/UserTestData.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/UserTestData.java b/src/test/java/ru/javawebinar/topjava/UserTestData.java
+--- a/src/test/java/ru/javawebinar/topjava/UserTestData.java	(revision 0935c5f474b753196757ebdc43a9dc67743a2939)
++++ b/src/test/java/ru/javawebinar/topjava/UserTestData.java	(date 1681337291788)
+@@ -26,9 +26,9 @@
+     public static final int GUEST_ID = START_SEQ + 2;
+     public static final int NOT_FOUND = 10;
+ 
+-    public static final User user = new User(USER_ID, "User", "user@yandex.ru", "password", Role.USER);
+-    public static final User admin = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", Role.ADMIN, Role.USER);
+-    public static final User guest = new User(GUEST_ID, "Guest", "guest@gmail.com", "guest");
++    public static final User user = new User(USER_ID, "User", "user@yandex.ru", "password", 2005, Role.USER);
++    public static final User admin = new User(ADMIN_ID, "Admin", "admin@gmail.com", "admin", 1900, Role.ADMIN, Role.USER);
++    public static final User guest = new User(GUEST_ID, "Guest", "guest@gmail.com", "guest", 2000);
+ 
+     static {
+         user.setMeals(meals);

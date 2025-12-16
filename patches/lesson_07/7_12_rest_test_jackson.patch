@@ -1,0 +1,120 @@
+Subject: [PATCH] 7_12_rest_test_jackson
+---
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+--- a/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision 5e297c14445ffcbfdea2bcee78c8b9117359c1c4)
++++ b/src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(date 1753309110930)
+@@ -1,15 +1,19 @@
+ package ru.javawebinar.topjava.model;
+ 
++import com.fasterxml.jackson.annotation.JsonAutoDetect;
+ import org.springframework.data.domain.Persistable;
+ import org.springframework.util.Assert;
+ 
+ import javax.persistence.*;
+ 
++import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.ANY;
++import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE;
+ import static org.hibernate.proxy.HibernateProxyHelper.getClassWithoutInitializingProxy;
+ 
+ @MappedSuperclass
+ // http://stackoverflow.com/questions/594597/hibernate-annotations-which-is-better-field-or-property-access
+ @Access(AccessType.FIELD)
++@JsonAutoDetect(fieldVisibility = ANY, getterVisibility = NONE, isGetterVisibility = NONE, setterVisibility = NONE)
+ public abstract class AbstractBaseEntity implements Persistable<Integer> {
+     public static final int START_SEQ = 100000;
+ 
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 5e297c14445ffcbfdea2bcee78c8b9117359c1c4)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1753309110937)
+@@ -4,6 +4,7 @@
+ import org.hibernate.annotations.*;
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.util.CollectionUtils;
++import com.fasterxml.jackson.annotation.JsonIgnore;
+ 
+ import javax.persistence.Entity;
+ import javax.persistence.NamedQueries;
+@@ -70,6 +71,7 @@
+     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
+     @OrderBy("dateTime DESC")
+     @OnDelete(action = OnDeleteAction.CASCADE) //https://stackoverflow.com/a/44988100/548473
++    @JsonIgnore
+     private List<Meal> meals;
+ 
+     public User() {
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+new file mode 100644
+--- /dev/null	(date 1753309110943)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1753309110943)
+@@ -0,0 +1,25 @@
++package ru.javawebinar.topjava.web.user;
++
++import org.junit.jupiter.api.Test;
++import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import ru.javawebinar.topjava.web.AbstractControllerTest;
++
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++import static ru.javawebinar.topjava.UserTestData.ADMIN_ID;
++
++class AdminRestControllerTest extends AbstractControllerTest {
++
++    private static final String REST_URL = AdminRestController.REST_URL + '/';
++
++    @Test
++    void get() throws Exception {
++        perform(MockMvcRequestBuilders.get(REST_URL + ADMIN_ID))
++                .andExpect(status().isOk())
++                .andDo(print())
++                // https://jira.spring.io/browse/SPR-14472
++                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
++    }
++}
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 5e297c14445ffcbfdea2bcee78c8b9117359c1c4)
++++ b/pom.xml	(date 1753309282289)
+@@ -17,6 +17,7 @@
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <spring.version>5.3.39</spring.version>
+         <spring-data-jpa.version>2.7.18</spring-data-jpa.version>
++        <jackson.version>2.19.2</jackson.version>
+         <tomcat.version>9.0.106</tomcat.version>
+ 
+         <!-- Hibernate -->
+@@ -220,6 +221,13 @@
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-webmvc</artifactId>
+         </dependency>
++
++        <!--JSON-->
++        <dependency>
++            <groupId>com.fasterxml.jackson.core</groupId>
++            <artifactId>jackson-databind</artifactId>
++            <version>${jackson.version}</version>
++        </dependency>
+ 
+         <!--Test-->
+         <dependency>

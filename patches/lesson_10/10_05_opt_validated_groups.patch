@@ -1,0 +1,151 @@
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(revision 8d8ccdbd1350f02c538c654ac4abdf5c98de1786)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(date 1607552544586)
+@@ -9,6 +9,7 @@
+ import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+ import org.springframework.stereotype.Repository;
+ import org.springframework.transaction.annotation.Transactional;
++import ru.javawebinar.topjava.View;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ import ru.javawebinar.topjava.util.ValidationUtil;
+@@ -40,7 +41,7 @@
+     @Override
+     @Transactional
+     public Meal save(Meal meal, int userId) {
+-        ValidationUtil.validate(meal);
++        ValidationUtil.validate(meal, View.ValidatedUI.class);
+ 
+         MapSqlParameterSource map = new MapSqlParameterSource()
+                 .addValue("id", meal.getId())
+Index: src/main/java/ru/javawebinar/topjava/View.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/View.java b/src/main/java/ru/javawebinar/topjava/View.java
+--- a/src/main/java/ru/javawebinar/topjava/View.java	(revision 8d8ccdbd1350f02c538c654ac4abdf5c98de1786)
++++ b/src/main/java/ru/javawebinar/topjava/View.java	(date 1607551483088)
+@@ -3,4 +3,8 @@
+ public class View {
+     public interface JsonREST {}
+     public interface JsonUI {}
++
++    // https://narmo7.wordpress.com/2014/04/26/how-to-set-up-validation-group-in-springmvc/
++    // http://forum.spring.io/forum/spring-projects/web/117289-validated-s-given-groups-should-consider-default-group-or-not
++    public interface ValidatedUI {}
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision 8d8ccdbd1350f02c538c654ac4abdf5c98de1786)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1607551483084)
+@@ -6,13 +6,14 @@
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.lang.Nullable;
+ import org.springframework.validation.BindingResult;
++import org.springframework.validation.annotation.Validated;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.View;
++import ru.javawebinar.topjava.View.ValidatedUI;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.to.MealTo;
+ import ru.javawebinar.topjava.util.ValidationUtil;
+ 
+-import javax.validation.Valid;
+ import java.time.LocalDate;
+ import java.time.LocalTime;
+ import java.util.List;
+@@ -44,7 +45,7 @@
+ 
+     @PostMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public ResponseEntity<String> createOrUpdate(@Valid Meal meal, BindingResult result) {
++    public ResponseEntity<String> createOrUpdate(@Validated(ValidatedUI.class) Meal meal, BindingResult result) {
+         if (result.hasErrors()) {
+             return ValidationUtil.getErrorResponse(result);
+         }
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(revision 8d8ccdbd1350f02c538c654ac4abdf5c98de1786)
++++ b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1607552792638)
+@@ -22,9 +22,9 @@
+     private ValidationUtil() {
+     }
+ 
+-    public static <T> void validate(T bean) {
++    public static <T> void validate(T bean, Class<?>... groups) {
+         // https://alexkosarev.name/2018/07/30/bean-validation-api/
+-        Set<ConstraintViolation<T>> violations = validator.validate(bean);
++        Set<ConstraintViolation<T>> violations = validator.validate(bean, groups);
+         if (!violations.isEmpty()) {
+             throw new ConstraintViolationException(violations);
+         }
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 8d8ccdbd1350f02c538c654ac4abdf5c98de1786)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1607551483077)
+@@ -9,12 +9,14 @@
+ import org.hibernate.validator.constraints.Range;
+ import org.springframework.format.annotation.DateTimeFormat;
+ import ru.javawebinar.topjava.View;
++import ru.javawebinar.topjava.View.ValidatedUI;
+ import ru.javawebinar.topjava.util.DateTimeUtil;
+ 
+ import javax.persistence.*;
+ import javax.validation.constraints.NotBlank;
+ import javax.validation.constraints.NotNull;
+ import javax.validation.constraints.Size;
++import javax.validation.groups.Default;
+ import java.time.LocalDate;
+ import java.time.LocalDateTime;
+ import java.time.LocalTime;
+@@ -37,25 +39,25 @@
+     public static final String GET_BETWEEN = "Meal.getBetween";
+ 
+     @Column(name = "date_time", nullable = false)
+-    @NotNull
++    @NotNull(groups = {ValidatedUI.class, Default.class})
+     @JsonView(View.JsonREST.class)
+     private LocalDateTime dateTime;
+ 
+     @Column(name = "description", nullable = false)
+-    @NotBlank
+-    @Size(min = 2, max = 120)
++    @NotBlank(groups = {ValidatedUI.class, Default.class})
++    @Size(min = 2, max = 120, groups = {ValidatedUI.class, Default.class})
+     private String description;
+ 
+     @Column(name = "calories", nullable = false)
+-    @NotNull
+-    @Range(min = 10, max = 5000)
++    @NotNull(groups = {ValidatedUI.class, Default.class})
++    @Range(min = 10, max = 5000, groups = {ValidatedUI.class, Default.class})
+     private Integer calories;
+ 
+     @ManyToOne(fetch = FetchType.LAZY)
+     @JoinColumn(name = "user_id", nullable = false)
+     @OnDelete(action = OnDeleteAction.CASCADE)
+     @JsonBackReference
+-//    @NotNull
++    @NotNull
+     private User user;
+ 
+     public Meal() {

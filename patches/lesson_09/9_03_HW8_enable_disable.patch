@@ -1,0 +1,245 @@
+Subject: [PATCH] 9_03_HW8_enable_disable
+---
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminRestController.java	(date 1701875823933)
+@@ -61,4 +61,11 @@
+     public User getWithMeals(@PathVariable int id) {
+         return super.getWithMeals(id);
+     }
++
++    @Override
++    @PatchMapping("/{id}")
++    @ResponseStatus(HttpStatus.NO_CONTENT)
++    public void enable(@PathVariable int id, @RequestParam boolean enabled) {
++        super.enable(id, enabled);
++    }
+ }
+\ No newline at end of file
+Index: src/main/webapp/resources/css/style.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/css/style.css b/src/main/webapp/resources/css/style.css
+--- a/src/main/webapp/resources/css/style.css	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/webapp/resources/css/style.css	(date 1701875823946)
+@@ -10,6 +10,10 @@
+     cursor: pointer;
+ }
+ 
++tr[data-user-enabled="false"] {
++    opacity: 0.3;
++}
++
+ /*https://getbootstrap.com/docs/4.0/examples/sticky-footer/sticky-footer.css*/
+ html {
+     position: relative;
+Index: src/main/java/ru/javawebinar/topjava/service/UserService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/service/UserService.java b/src/main/java/ru/javawebinar/topjava/service/UserService.java
+--- a/src/main/java/ru/javawebinar/topjava/service/UserService.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/java/ru/javawebinar/topjava/service/UserService.java	(date 1701875823923)
+@@ -3,6 +3,7 @@
+ import org.springframework.cache.annotation.CacheEvict;
+ import org.springframework.cache.annotation.Cacheable;
+ import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.util.Assert;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
+@@ -52,6 +53,14 @@
+         checkNotFoundWithId(repository.save(user), user.id());
+     }
+ 
++    @CacheEvict(value = "users", allEntries = true)
++    @Transactional
++    public void enable(int id, boolean enabled) {
++        User user = get(id);
++        user.setEnabled(enabled);
++        repository.save(user);  // !! need only for JDBC implementation
++    }
++
+     public User getWithMeals(int id) {
+         return checkNotFoundWithId(repository.getWithMeals(id), id);
+     }
+Index: src/main/webapp/resources/js/topjava.users.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.users.js b/src/main/webapp/resources/js/topjava.users.js
+--- a/src/main/webapp/resources/js/topjava.users.js	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/webapp/resources/js/topjava.users.js	(date 1701876050781)
+@@ -8,6 +8,21 @@
+     }
+ }
+ 
++function enable(chkbox, id) {
++    const enabled = chkbox.is(":checked");
++//  https://stackoverflow.com/a/22213543/548473
++    $.ajax({
++        url: userAjaxUrl + id,
++        type: "POST",
++        data: "enabled=" + enabled
++    }).done(function () {
++        chkbox.closest("tr").attr("data-user-enabled", enabled);
++        successNoty(enabled ? "Enabled" : "Disabled");
++    }).fail(function () {
++        $(chkbox).prop("checked", !enabled);
++    });
++}
++
+ // $(document).ready(function () {
+ $(function () {
+     makeEditable(
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1701875823928)
+@@ -53,4 +53,9 @@
+         log.info("getWithMeals {}", id);
+         return service.getWithMeals(id);
+     }
++
++    public void enable(int id, boolean enabled) {
++        log.info(enabled ? "enable {}" : "disable {}", id);
++        service.enable(id, enabled);
++    }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractServiceTest.java	(date 1701875823965)
+@@ -17,7 +17,7 @@
+ })
+ //@ExtendWith(SpringExtension.class)
+ @ActiveProfiles(resolver = ActiveDbProfileResolver.class)
+-@Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
++@Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"), executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
+ @ExtendWith(TimingExtension.class)
+ public abstract class AbstractServiceTest {
+ 
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1701875823941)
+@@ -32,4 +32,11 @@
+                        @RequestParam String password) {
+         super.create(new User(null, name, email, password, Role.USER));
+     }
++
++    @Override
++    @PostMapping("/{id}")
++    @ResponseStatus(HttpStatus.NO_CONTENT)
++    public void enable(@PathVariable int id, @RequestParam boolean enabled) {
++        super.enable(id, enabled);
++    }
+ }
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1701875823972)
+@@ -12,7 +12,7 @@
+ import java.util.List;
+ import java.util.Set;
+ 
+-import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.*;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ 
+ public abstract class AbstractUserServiceTest extends AbstractServiceTest {
+@@ -85,4 +85,12 @@
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "password", 9, true, new Date(), Set.of())));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "password", 10001, true, new Date(), Set.of())));
+     }
++
++    @Test
++    void enable() {
++        service.enable(USER_ID, false);
++        assertFalse(service.get(USER_ID).isEnabled());
++        service.enable(USER_ID, true);
++        assertTrue(service.get(USER_ID).isEnabled());
++    }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1701875823978)
+@@ -11,6 +11,7 @@
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
++import static org.junit.jupiter.api.Assertions.assertFalse;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+@@ -93,4 +94,15 @@
+                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                 .andExpect(USER_WITH_MEALS_MATCHER.contentJson(admin));
+     }
++
++    @Test
++    void enable() throws Exception {
++        perform(MockMvcRequestBuilders.patch(REST_URL + USER_ID)
++                .param("enabled", "false")
++                .contentType(MediaType.APPLICATION_JSON))
++                .andDo(print())
++                .andExpect(status().isNoContent());
++
++        assertFalse(userService.get(USER_ID).isEnabled());
++    }
+ }
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision 190191bea6a7d5f55b927f2f2b96bd5ee3c9e80d)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1701875823960)
+@@ -31,11 +31,11 @@
+             </thead>
+             <c:forEach items="${requestScope.users}" var="user">
+                 <jsp:useBean id="user" type="ru.javawebinar.topjava.model.User"/>
+-                <tr>
++                <tr data-user-enabled="${user.enabled}">
+                     <td><c:out value="${user.name}"/></td>
+                     <td><a href="mailto:${user.email}">${user.email}</a></td>
+                     <td>${user.roles}</td>
+-                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if>/></td>
++                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if> onclick="enable($(this), ${user.id})"/></td>
+                     <td><fmt:formatDate value="${user.registered}" pattern="dd-MMMM-yyyy"/></td>
+                     <td><a><span class="fa fa-pencil"></span></a></td>
+                     <td><a onclick="deleteRow(${user.id})"><span class="fa fa-remove"></span></a></td>

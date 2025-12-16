@@ -1,0 +1,86 @@
+Subject: [PATCH] 2_4_add_spring
+---
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 9816e567c6a74288b1df1270bef6697615276e8a)
++++ b/pom.xml	(date 1739464549785)
+@@ -15,6 +15,8 @@
+         <java.version>1.8</java.version>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
++        <spring.version>5.3.39</spring.version>
++
+         <!-- Logging -->
+         <logback.version>1.2.13</logback.version>
+         <slf4j.version>1.7.36</slf4j.version>
+@@ -55,6 +57,13 @@
+             <version>${logback.version}</version>
+             <scope>runtime</scope>
+         </dependency>
++
++        <!-- Spring -->
++        <dependency>
++            <groupId>org.springframework</groupId>
++            <artifactId>spring-context</artifactId>
++            <version>${spring.version}</version>
++        </dependency>
+ 
+         <!--Web-->
+         <dependency>
+Index: src/main/java/ru/javawebinar/topjava/model/User.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/User.java b/src/main/java/ru/javawebinar/topjava/model/User.java
+--- a/src/main/java/ru/javawebinar/topjava/model/User.java	(revision 9816e567c6a74288b1df1270bef6697615276e8a)
++++ b/src/main/java/ru/javawebinar/topjava/model/User.java	(date 1739464362282)
+@@ -1,8 +1,8 @@
+ package ru.javawebinar.topjava.model;
+ 
+-import java.util.Date;
+-import java.util.EnumSet;
+-import java.util.Set;
++import org.springframework.util.CollectionUtils;
++
++import java.util.*;
+ 
+ import static ru.javawebinar.topjava.util.MealsUtil.DEFAULT_CALORIES_PER_DAY;
+ 
+@@ -20,17 +20,17 @@
+ 
+     private int caloriesPerDay;
+ 
+-    public User(Integer id, String name, String email, String password, Role role, Role... roles) {
+-        this(id, name, email, password, DEFAULT_CALORIES_PER_DAY, true, EnumSet.of(role, roles));
++    public User(Integer id, String name, String email, String password, Role... roles) {
++        this(id, name, email, password, DEFAULT_CALORIES_PER_DAY, true, Arrays.asList(roles));
+     }
+ 
+-    public User(Integer id, String name, String email, String password, int caloriesPerDay, boolean enabled, Set<Role> roles) {
++    public User(Integer id, String name, String email, String password, int caloriesPerDay, boolean enabled, Collection<Role> roles) {
+         super(id, name);
+         this.email = email;
+         this.password = password;
+         this.caloriesPerDay = caloriesPerDay;
+         this.enabled = enabled;
+-        this.roles = roles;
++        setRoles(roles);
+     }
+ 
+     public String getEmail() {
+@@ -73,6 +73,10 @@
+         return roles;
+     }
+ 
++    public void setRoles(Collection<Role> roles) {
++        this.roles = CollectionUtils.isEmpty(roles) ? EnumSet.noneOf(Role.class) : EnumSet.copyOf(roles);
++    }
++
+     public String getPassword() {
+         return password;
+     }

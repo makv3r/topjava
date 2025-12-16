@@ -1,0 +1,530 @@
+Subject: [PATCH] 11_04_HW10_duplicate_datetime
+---
+Index: src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/ProfileUIController.java	(date 1692198924489)
+@@ -13,6 +13,8 @@
+ 
+ import javax.validation.Valid;
+ 
++import static ru.javawebinar.topjava.web.ExceptionInfoHandler.EXCEPTION_DUPLICATE_EMAIL;
++
+ @Controller
+ @RequestMapping("/profile")
+ public class ProfileUIController extends AbstractUserController {
+Index: src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/test/java/ru/javawebinar/topjava/web/AbstractControllerTest.java	(date 1692198924535)
+@@ -2,11 +2,13 @@
+ 
+ import org.junit.jupiter.api.Assumptions;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.context.support.MessageSourceAccessor;
+ import org.springframework.core.env.Environment;
+ import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
+ import org.springframework.test.web.servlet.MockMvc;
+ import org.springframework.test.web.servlet.ResultActions;
++import org.springframework.test.web.servlet.ResultMatcher;
+ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+ import org.springframework.transaction.annotation.Transactional;
+@@ -14,10 +16,13 @@
+ import org.springframework.web.filter.CharacterEncodingFilter;
+ import ru.javawebinar.topjava.ActiveDbProfileResolver;
+ import ru.javawebinar.topjava.Profiles;
++import ru.javawebinar.topjava.util.exception.ErrorType;
+ 
+ import javax.annotation.PostConstruct;
++import java.util.Locale;
+ 
+ import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+ 
+ 
+ @SpringJUnitWebConfig(locations = {
+@@ -46,6 +51,9 @@
+     @Autowired
+     private WebApplicationContext webApplicationContext;
+ 
++    @Autowired
++    protected MessageSourceAccessor messageSourceAccessor;
++
+     protected void assumeDataJpa() {
+         Assumptions.assumeTrue(env.acceptsProfiles(org.springframework.core.env.Profiles.of(Profiles.DATAJPA)), "DATA-JPA only");
+     }
+@@ -62,4 +70,16 @@
+     protected ResultActions perform(MockHttpServletRequestBuilder builder) throws Exception {
+         return mockMvc.perform(builder);
+     }
++
++    private String getMessage(String code) {
++        return messageSourceAccessor.getMessage(code, Locale.ENGLISH);
++    }
++
++    protected ResultMatcher errorType(ErrorType type) {
++        return jsonPath("$.type").value(type.name());
++    }
++
++    protected ResultMatcher detailMessage(String code) {
++        return jsonPath("$.details").value(getMessage(code));
++    }
+ }
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/config/messages/app_ru.properties	(date 1692198924471)
+@@ -45,4 +45,5 @@
+ common.save=Сохранить
+ common.cancel=Отменить
+ 
+-exception.user.duplicateEmail=Пользователь с такой почтой уже есть в приложении
+\ No newline at end of file
++exception.user.duplicateEmail=Пользователь с такой почтой уже есть в приложении
++exception.meal.duplicateDateTime=У вас уже есть еда с такой датой/временем
+\ No newline at end of file
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/config/messages/app.properties	(date 1692198924465)
+@@ -45,4 +45,5 @@
+ common.save=Save
+ common.cancel=Cancel
+ 
+-exception.user.duplicateEmail=User with this email already exists
+\ No newline at end of file
++exception.user.duplicateEmail=User with this email already exists
++exception.meal.duplicateDateTime=You already have meal with this date/time
+\ No newline at end of file
+Index: src/test/resources/spring/inmemory.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/resources/spring/inmemory.xml b/src/test/resources/spring/inmemory.xml
+--- a/src/test/resources/spring/inmemory.xml	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/test/resources/spring/inmemory.xml	(date 1692198924540)
+@@ -5,6 +5,7 @@
+ 
+     <context:component-scan base-package="ru.javawebinar.topjava.**.repository.inmemory"/>
+     <context:component-scan base-package="ru.javawebinar.**.service"/>
+-    <context:component-scan base-package="ru.javawebinar.topjava.**.web"/>
++    <context:component-scan base-package="ru.javawebinar.topjava.**.web.user"/>
++    <context:component-scan base-package="ru.javawebinar.topjava.**.web.meal"/>
+     <bean class="org.springframework.security.crypto.password.NoOpPasswordEncoder" id="passwordEncoder"/>
+ </beans>
+\ No newline at end of file
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1692198924504)
+@@ -70,6 +70,10 @@
+         <property name="fallbackToSystemLocale" value="false"/>
+     </bean>
+ 
++    <bean class="org.springframework.context.support.MessageSourceAccessor">
++        <constructor-arg ref="messageSource"/>
++    </bean>
++
+     <mvc:interceptors>
+         <bean class="ru.javawebinar.topjava.web.interceptor.ModelInterceptor"/>
+     </mvc:interceptors>
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+--- a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1692198929567)
+@@ -2,6 +2,7 @@
+ 
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
++import org.springframework.context.support.MessageSourceAccessor;
+ import org.springframework.core.Ordered;
+ import org.springframework.core.annotation.Order;
+ import org.springframework.dao.DataIntegrityViolationException;
+@@ -20,6 +21,7 @@
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import javax.servlet.http.HttpServletRequest;
++import java.util.Map;
+ 
+ import static ru.javawebinar.topjava.util.exception.ErrorType.*;
+ 
+@@ -28,6 +30,19 @@
+ public class ExceptionInfoHandler {
+     private static final Logger log = LoggerFactory.getLogger(ExceptionInfoHandler.class);
+ 
++    public static final String EXCEPTION_DUPLICATE_EMAIL = "exception.user.duplicateEmail";
++    public static final String EXCEPTION_DUPLICATE_DATETIME = "exception.meal.duplicateDateTime";
++
++    private static final Map<String, String> CONSTRAINTS_I18N_MAP = Map.of(
++            "users_unique_email_idx", EXCEPTION_DUPLICATE_EMAIL,
++            "meal_unique_user_datetime_idx", EXCEPTION_DUPLICATE_DATETIME);
++
++    private final MessageSourceAccessor messageSourceAccessor;
++
++    public ExceptionInfoHandler(MessageSourceAccessor messageSourceAccessor) {
++        this.messageSourceAccessor = messageSourceAccessor;
++    }
++
+     //  http://stackoverflow.com/a/22358422/548473
+     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+     @ExceptionHandler(NotFoundException.class)
+@@ -38,6 +53,15 @@
+     @ResponseStatus(HttpStatus.CONFLICT)  // 409
+     @ExceptionHandler(DataIntegrityViolationException.class)
+     public ErrorInfo conflict(HttpServletRequest req, DataIntegrityViolationException e) {
++        String rootMsg = ValidationUtil.getRootCause(e).getMessage();
++        if (rootMsg != null) {
++            String lowerCaseMsg = rootMsg.toLowerCase();
++            for (Map.Entry<String, String> entry : CONSTRAINTS_I18N_MAP.entrySet()) {
++                if (lowerCaseMsg.contains(entry.getKey())) {
++                    return logAndGetErrorInfo(req, e, false, VALIDATION_ERROR, messageSourceAccessor.getMessage(entry.getValue()));
++                }
++            }
++        }
+         return logAndGetErrorInfo(req, e, true, DATA_ERROR);
+     }
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/test/java/ru/javawebinar/topjava/web/meal/MealRestControllerTest.java	(date 1692198924512)
+@@ -6,22 +6,26 @@
+ import org.springframework.http.MediaType;
+ import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import org.springframework.transaction.annotation.Propagation;
++import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.MealTestData;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.service.MealService;
+-import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+ import static ru.javawebinar.topjava.MealTestData.*;
+ import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
+ import static ru.javawebinar.topjava.util.MealsUtil.createTo;
+ import static ru.javawebinar.topjava.util.MealsUtil.getTos;
++import static ru.javawebinar.topjava.util.exception.ErrorType.VALIDATION_ERROR;
++import static ru.javawebinar.topjava.web.ExceptionInfoHandler.EXCEPTION_DUPLICATE_DATETIME;
+ 
+ class MealRestControllerTest extends AbstractControllerTest {
+ 
+@@ -134,7 +138,7 @@
+                 .with(userHttpBasic(admin)))
+                 .andDo(print())
+                 .andExpect(status().isUnprocessableEntity())
+-                .andExpect(jsonPath("$.type").value(ErrorType.VALIDATION_ERROR.name()));
++                .andExpect(errorType(VALIDATION_ERROR));
+     }
+ 
+     @Test
+@@ -146,6 +150,35 @@
+                 .with(userHttpBasic(user)))
+                 .andDo(print())
+                 .andExpect(status().isUnprocessableEntity())
+-                .andExpect(jsonPath("$.type").value(ErrorType.VALIDATION_ERROR.name()));
++                .andExpect(errorType(VALIDATION_ERROR));
++    }
++
++    @Test
++    @Transactional(propagation = Propagation.NEVER)
++    void updateDuplicate() throws Exception {
++        Meal invalid = new Meal(MEAL1_ID, meal2.getDateTime(), "Dummy", 200);
++
++        perform(MockMvcRequestBuilders.put(REST_URL + MEAL1_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid))
++                .with(userHttpBasic(user)))
++                .andDo(print())
++                .andExpect(status().isConflict())
++                .andExpect(errorType(VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_DUPLICATE_DATETIME));
++    }
++
++    @Test
++    @Transactional(propagation = Propagation.NEVER)
++    void createDuplicate() throws Exception {
++        Meal invalid = new Meal(null, adminMeal1.getDateTime(), "Dummy", 200);
++        perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(JsonUtil.writeValue(invalid))
++                .with(userHttpBasic(admin)))
++                .andDo(print())
++                .andExpect(status().isConflict())
++                .andExpect(errorType(VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_DUPLICATE_DATETIME));
+     }
+ }
+\ No newline at end of file
+Index: src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/AdminRestControllerTest.java	(date 1692198924519)
+@@ -5,19 +5,23 @@
+ import org.springframework.http.MediaType;
+ import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import org.springframework.transaction.annotation.Propagation;
++import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+-import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ 
+ import static org.junit.jupiter.api.Assertions.assertFalse;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+ import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.util.exception.ErrorType.VALIDATION_ERROR;
++import static ru.javawebinar.topjava.web.ExceptionInfoHandler.EXCEPTION_DUPLICATE_EMAIL;
+ 
+ class AdminRestControllerTest extends AbstractControllerTest {
+ 
+@@ -153,7 +157,7 @@
+                 .content(jsonWithPassword(invalid, "newPass")))
+                 .andDo(print())
+                 .andExpect(status().isUnprocessableEntity())
+-                .andExpect(jsonPath("$.type").value(ErrorType.VALIDATION_ERROR.name()));
++                .andExpect(errorType(VALIDATION_ERROR));
+     }
+ 
+     @Test
+@@ -166,6 +170,35 @@
+                 .content(jsonWithPassword(invalid, "password")))
+                 .andDo(print())
+                 .andExpect(status().isUnprocessableEntity())
+-                .andExpect(jsonPath("$.type").value(ErrorType.VALIDATION_ERROR.name()));
++                .andExpect(errorType(VALIDATION_ERROR));
++    }
++
++    @Test
++    @Transactional(propagation = Propagation.NEVER)
++    void updateDuplicate() throws Exception {
++        User updated = new User(user);
++        updated.setEmail("admin@gmail.com");
++        perform(MockMvcRequestBuilders.put(REST_URL + USER_ID)
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin))
++                .content(jsonWithPassword(updated, "password")))
++                .andDo(print())
++                .andExpect(status().isConflict())
++                .andExpect(errorType(VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_DUPLICATE_EMAIL));
++    }
++
++    @Test
++    @Transactional(propagation = Propagation.NEVER)
++    void createDuplicate() throws Exception {
++        User expected = new User(null, "New", "user@yandex.ru", "newPass", 2300, Role.USER, Role.ADMIN);
++        perform(MockMvcRequestBuilders.post(REST_URL)
++                .contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(admin))
++                .content(jsonWithPassword(expected, "newPass")))
++                .andDo(print())
++                .andExpect(status().isConflict())
++                .andExpect(errorType(VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_DUPLICATE_EMAIL));
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AbstractUserController.java	(date 1692198924477)
+@@ -16,8 +16,6 @@
+ public abstract class AbstractUserController {
+     protected final Logger log = LoggerFactory.getLogger(getClass());
+ 
+-    public static final String EXCEPTION_DUPLICATE_EMAIL = "exception.user.duplicateEmail";
+-
+     @Autowired
+     private UserService service;
+ 
+Index: src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/test/java/ru/javawebinar/topjava/web/user/ProfileRestControllerTest.java	(date 1692198924525)
+@@ -5,18 +5,22 @@
+ import org.springframework.http.MediaType;
+ import org.springframework.test.web.servlet.ResultActions;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
++import org.springframework.transaction.annotation.Propagation;
++import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.service.UserService;
+ import ru.javawebinar.topjava.to.UserTo;
+ import ru.javawebinar.topjava.util.UsersUtil;
+-import ru.javawebinar.topjava.util.exception.ErrorType;
+ import ru.javawebinar.topjava.web.AbstractControllerTest;
+ import ru.javawebinar.topjava.web.json.JsonUtil;
+ 
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+ import static ru.javawebinar.topjava.TestUtil.userHttpBasic;
+ import static ru.javawebinar.topjava.UserTestData.*;
++import static ru.javawebinar.topjava.util.exception.ErrorType.VALIDATION_ERROR;
++import static ru.javawebinar.topjava.web.ExceptionInfoHandler.EXCEPTION_DUPLICATE_EMAIL;
+ import static ru.javawebinar.topjava.web.user.ProfileRestController.REST_URL;
+ 
+ class ProfileRestControllerTest extends AbstractControllerTest {
+@@ -95,7 +99,7 @@
+                 .content(JsonUtil.writeValue(newTo)))
+                 .andDo(print())
+                 .andExpect(status().isUnprocessableEntity())
+-                .andExpect(jsonPath("$.type").value(ErrorType.VALIDATION_ERROR.name()));
++                .andExpect(errorType(VALIDATION_ERROR));
+     }
+ 
+     @Test
+@@ -107,6 +111,20 @@
+                 .content(JsonUtil.writeValue(updatedTo)))
+                 .andDo(print())
+                 .andExpect(status().isUnprocessableEntity())
+-                .andExpect(jsonPath("$.type").value(ErrorType.VALIDATION_ERROR.name()));
++                .andExpect(errorType(VALIDATION_ERROR));
++    }
++
++    @Test
++    @Transactional(propagation = Propagation.NEVER)
++    void updateDuplicate() throws Exception {
++        UserTo updatedTo = new UserTo(null, "newName", "admin@gmail.com", "newPassword", 1500);
++
++        perform(MockMvcRequestBuilders.put(REST_URL).contentType(MediaType.APPLICATION_JSON)
++                .with(userHttpBasic(user))
++                .content(JsonUtil.writeValue(updatedTo)))
++                .andDo(print())
++                .andExpect(status().isConflict())
++                .andExpect(errorType(VALIDATION_ERROR))
++                .andExpect(detailMessage(EXCEPTION_DUPLICATE_EMAIL));
+     }
+ }
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1692198929561)
+@@ -27,7 +27,7 @@
+ //                "m.description=:desc where m.id=:id and m.user.id=:userId")
+ })
+ @Entity
+-@Table(name = "meal", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "date_time"}, name = "meals_unique_user_datetime_idx")})
++@Table(name = "meal", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "date_time"}, name = "meal_unique_user_datetime_idx")})
+ public class Meal extends AbstractBaseEntity {
+     public static final String ALL_SORTED = "Meal.getAll";
+     public static final String DELETE = "Meal.delete";
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 0808505fcb5a9765682bcc34b6db8e3888ce308f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1692198924483)
+@@ -1,15 +1,10 @@
+ package ru.javawebinar.topjava.web.user;
+ 
+-import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.context.MessageSource;
+-import org.springframework.context.i18n.LocaleContextHolder;
+-import org.springframework.dao.DataIntegrityViolationException;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+-import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+ 
+ import javax.validation.Valid;
+ import java.util.List;
+@@ -18,9 +13,6 @@
+ @RequestMapping(value = "/admin/users", produces = MediaType.APPLICATION_JSON_VALUE)
+ public class AdminUIController extends AbstractUserController {
+ 
+-    @Autowired
+-    private MessageSource messageSource;
+-
+     @Override
+     @GetMapping
+     public List<User> getAll() {
+@@ -43,14 +35,10 @@
+     @PostMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+     public void createOrUpdate(@Valid UserTo userTo) {
+-        try {
+-            if (userTo.isNew()) {
+-                super.create(userTo);
+-            } else {
+-                super.update(userTo, userTo.id());
+-            }
+-        } catch (DataIntegrityViolationException e) {
+-            throw new IllegalRequestDataException(messageSource.getMessage(EXCEPTION_DUPLICATE_EMAIL, null, LocaleContextHolder.getLocale()));
++        if (userTo.isNew()) {
++            super.create(userTo);
++        } else {
++            super.update(userTo, userTo.id());
+         }
+     }
+ 

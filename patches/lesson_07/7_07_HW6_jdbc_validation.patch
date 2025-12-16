@@ -1,0 +1,161 @@
+Subject: [PATCH] 7_07_HW6_jdbc_validation
+---
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision 88d1e76db689194d779a53fc859d815aea50b14f)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1753307348651)
+@@ -45,7 +45,7 @@
+     @ManyToOne(fetch = FetchType.LAZY)
+     @JoinColumn(name = "user_id", nullable = false)
+     @OnDelete(action = OnDeleteAction.CASCADE)
+-    @NotNull
++//    @NotNull
+     private User user;
+ 
+     public Meal() {
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(revision 88d1e76db689194d779a53fc859d815aea50b14f)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractMealServiceTest.java	(date 1753307377962)
+@@ -1,7 +1,6 @@
+ package ru.javawebinar.topjava.service;
+ 
+ import org.junit.Assert;
+-import org.junit.Assume;
+ import org.junit.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.dao.DataAccessException;
+@@ -105,7 +104,6 @@
+ 
+     @Test
+     public void createWithException() throws Exception {
+-        Assume.assumeTrue("Validation not supported (JPA only)", isJpaBased());
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "  ", 300), USER_ID));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new Meal(null, null, "Description", 300), USER_ID));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new Meal(null, of(2015, Month.JUNE, 1, 18, 0), "Description", 9), USER_ID));
+Index: src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(revision 88d1e76db689194d779a53fc859d815aea50b14f)
++++ b/src/test/java/ru/javawebinar/topjava/service/AbstractUserServiceTest.java	(date 1753307377970)
+@@ -1,6 +1,5 @@
+ package ru.javawebinar.topjava.service;
+ 
+-import org.junit.Assume;
+ import org.junit.Before;
+ import org.junit.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+@@ -99,7 +98,6 @@
+ 
+     @Test
+     public void createWithException() throws Exception {
+-        Assume.assumeTrue("Validation not supported (JPA only)", isJpaBased());
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "  ", "mail@yandex.ru", "password", Role.USER)));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "  ", "password", Role.USER)));
+         validateRootCause(ConstraintViolationException.class, () -> service.create(new User(null, "User", "mail@yandex.ru", "  ", Role.USER)));
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(revision 88d1e76db689194d779a53fc859d815aea50b14f)
++++ b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1753307516777)
+@@ -1,15 +1,35 @@
+ package ru.javawebinar.topjava.util;
+ 
+-
+ import org.springframework.core.NestedExceptionUtils;
+ import org.springframework.lang.NonNull;
+ import ru.javawebinar.topjava.model.AbstractBaseEntity;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
++import javax.validation.*;
++import java.util.Set;
++
+ public class ValidationUtil {
++
++    private static final Validator validator;
++
++    static {
++        //  From Javadoc: implementations are thread-safe and instances are typically cached and reused.
++        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
++        //  From Javadoc: implementations of this interface must be thread-safe
++        validator = factory.getValidator();
++    }
++
+     private ValidationUtil() {
+     }
+ 
++    public static <T> void validate(T bean) {
++        // https://alexkosarev.name/2018/07/30/bean-validation-api/
++        Set<ConstraintViolation<T>> violations = validator.validate(bean);
++        if (!violations.isEmpty()) {
++            throw new ConstraintViolationException(violations);
++        }
++    }
++
+     public static <T> T checkNotFound(T object, int id) {
+         checkNotFound(object != null, id);
+         return object;
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(revision 88d1e76db689194d779a53fc859d815aea50b14f)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcMealRepository.java	(date 1753307348658)
+@@ -11,6 +11,7 @@
+ import org.springframework.transaction.annotation.Transactional;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
++import ru.javawebinar.topjava.util.ValidationUtil;
+ 
+ import java.time.LocalDateTime;
+ import java.util.List;
+@@ -39,6 +40,8 @@
+     @Override
+     @Transactional
+     public Meal save(Meal meal, int userId) {
++        ValidationUtil.validate(meal);
++
+         MapSqlParameterSource map = new MapSqlParameterSource()
+                 .addValue("id", meal.getId())
+                 .addValue("description", meal.getDescription())
+Index: src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(revision 88d1e76db689194d779a53fc859d815aea50b14f)
++++ b/src/main/java/ru/javawebinar/topjava/repository/jdbc/JdbcUserRepository.java	(date 1753307348668)
+@@ -13,6 +13,7 @@
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.repository.UserRepository;
++import ru.javawebinar.topjava.util.ValidationUtil;
+ 
+ import java.util.*;
+ 
+@@ -41,6 +42,8 @@
+     @Override
+     @Transactional
+     public User save(User user) {
++        ValidationUtil.validate(user);
++
+         BeanPropertySqlParameterSource parameterSource = new BeanPropertySqlParameterSource(user);
+ 
+         if (user.isNew()) {

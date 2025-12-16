@@ -1,0 +1,419 @@
+Subject: [PATCH] 2_2_HW1_optional
+---
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(revision e2a712d767ffd8b9909ec1ae7d53cbf47b6929b2)
++++ b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1739464147235)
+@@ -8,6 +8,7 @@
+ import java.time.LocalTime;
+ import java.time.Month;
+ import java.util.Arrays;
++import java.util.Collection;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.function.Predicate;
+@@ -26,15 +27,15 @@
+             new Meal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
+     );
+ 
+-    public static List<MealTo> getTos(List<Meal> meals, int caloriesPerDay) {
++    public static List<MealTo> getTos(Collection<Meal> meals, int caloriesPerDay) {
+         return filterByPredicate(meals, caloriesPerDay, meal -> true);
+     }
+ 
+-    public static List<MealTo> getFilteredTos(List<Meal> meals, int caloriesPerDay, LocalTime startTime, LocalTime endTime) {
++    public static List<MealTo> getFilteredTos(Collection<Meal> meals, int caloriesPerDay, LocalTime startTime, LocalTime endTime) {
+         return filterByPredicate(meals, caloriesPerDay, meal -> DateTimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime));
+     }
+ 
+-    private static List<MealTo> filterByPredicate(List<Meal> meals, int caloriesPerDay, Predicate<Meal> filter) {
++    private static List<MealTo> filterByPredicate(Collection<Meal> meals, int caloriesPerDay, Predicate<Meal> filter) {
+         Map<LocalDate, Integer> caloriesSumByDate = meals.stream()
+                 .collect(
+                         Collectors.groupingBy(Meal::getDate, Collectors.summingInt(Meal::getCalories))
+@@ -48,6 +49,6 @@
+     }
+ 
+     private static MealTo createTo(Meal meal, boolean excess) {
+-        return new MealTo(meal.getDateTime(), meal.getDescription(), meal.getCalories(), excess);
++        return new MealTo(meal.getId(), meal.getDateTime(), meal.getDescription(), meal.getCalories(), excess);
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+new file mode 100644
+--- /dev/null	(date 1739464147222)
++++ b/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(date 1739464147222)
+@@ -0,0 +1,18 @@
++package ru.javawebinar.topjava.repository;
++
++import ru.javawebinar.topjava.model.Meal;
++
++import java.util.Collection;
++
++public interface MealRepository {
++    // null if not found, when updated
++    Meal save(Meal meal);
++
++    // false if not found
++    boolean delete(int id);
++
++    // null if not found
++    Meal get(int id);
++
++    Collection<Meal> getAll();
++}
+Index: src/main/webapp/mealForm.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/mealForm.jsp b/src/main/webapp/mealForm.jsp
+new file mode 100644
+--- /dev/null	(date 1739464147263)
++++ b/src/main/webapp/mealForm.jsp	(date 1739464147263)
+@@ -0,0 +1,51 @@
++<%@ page contentType="text/html;charset=UTF-8" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++
++<html>
++<head>
++    <title>Meal</title>
++    <style>
++        dl {
++            background: none repeat scroll 0 0 #FAFAFA;
++            margin: 8px 0;
++            padding: 0;
++        }
++
++        dt {
++            display: inline-block;
++            width: 170px;
++        }
++
++        dd {
++            display: inline-block;
++            margin-left: 8px;
++            vertical-align: top;
++        }
++    </style>
++</head>
++<body>
++<section>
++    <h3><a href="index.html">Home</a></h3>
++    <hr>
++    <h2>${param.action == 'create' ? 'Create meal' : 'Edit meal'}</h2>
++    <jsp:useBean id="meal" type="ru.javawebinar.topjava.model.Meal" scope="request"/>
++    <form method="post" action="meals">
++        <input type="hidden" name="id" value="${meal.id}">
++        <dl>
++            <dt>DateTime:</dt>
++            <dd><input type="datetime-local" value="${meal.dateTime}" name="dateTime" required></dd>
++        </dl>
++        <dl>
++            <dt>Description:</dt>
++            <dd><input type="text" value="${meal.description}" size=40 name="description" required></dd>
++        </dl>
++        <dl>
++            <dt>Calories:</dt>
++            <dd><input type="number" value="${meal.calories}" name="calories" required></dd>
++        </dl>
++        <button type="submit">Save</button>
++        <button onclick="window.history.back()" type="button">Cancel</button>
++    </form>
++</section>
++</body>
++</html>
+Index: src/main/java/ru/javawebinar/topjava/repository/InMemoryMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/InMemoryMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/InMemoryMealRepository.java
+new file mode 100644
+--- /dev/null	(date 1739464173509)
++++ b/src/main/java/ru/javawebinar/topjava/repository/InMemoryMealRepository.java	(date 1739464173509)
+@@ -0,0 +1,45 @@
++package ru.javawebinar.topjava.repository;
++
++import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.util.MealsUtil;
++
++import java.util.Collection;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.AtomicInteger;
++
++public class InMemoryMealRepository implements MealRepository {
++    private final Map<Integer, Meal> mealsMap = new ConcurrentHashMap<>();
++    private final AtomicInteger counter = new AtomicInteger(0);
++
++    {
++        MealsUtil.meals.forEach(this::save);
++    }
++
++    @Override
++    public Meal save(Meal meal) {
++        if (meal.isNew()) {
++            meal.setId(counter.incrementAndGet());
++            mealsMap.put(meal.getId(), meal);
++            return meal;
++        }
++        // handle case: update, but not present in storage
++        return mealsMap.computeIfPresent(meal.getId(), (id, oldMeal) -> meal);
++    }
++
++    @Override
++    public boolean delete(int id) {
++        return mealsMap.remove(id) != null;
++    }
++
++    @Override
++    public Meal get(int id) {
++        return mealsMap.get(id);
++    }
++
++    @Override
++    public Collection<Meal> getAll() {
++        return mealsMap.values();
++    }
++}
++
+Index: src/main/webapp/meals.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/meals.jsp b/src/main/webapp/meals.jsp
+--- a/src/main/webapp/meals.jsp	(revision e2a712d767ffd8b9909ec1ae7d53cbf47b6929b2)
++++ b/src/main/webapp/meals.jsp	(date 1739464147279)
+@@ -21,12 +21,16 @@
+     <h3><a href="index.html">Home</a></h3>
+     <hr/>
+     <h2>Meals</h2>
++    <a href="meals?action=create">Add Meal</a>
++    <br><br>
+     <table border="1" cellpadding="8" cellspacing="0">
+         <thead>
+         <tr>
+             <th>Date</th>
+             <th>Description</th>
+             <th>Calories</th>
++            <th></th>
++            <th></th>
+         </tr>
+         </thead>
+         <c:forEach items="${requestScope.meals}" var="meal">
+@@ -40,6 +44,8 @@
+                 </td>
+                 <td>${meal.description}</td>
+                 <td>${meal.calories}</td>
++                <td><a href="meals?action=update&id=${meal.id}">Update</a></td>
++                <td><a href="meals?action=delete&id=${meal.id}">Delete</a></td>
+             </tr>
+         </c:forEach>
+     </table>
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(revision e2a712d767ffd8b9909ec1ae7d53cbf47b6929b2)
++++ b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1739464147248)
+@@ -2,6 +2,9 @@
+ 
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
++import ru.javawebinar.topjava.model.Meal;
++import ru.javawebinar.topjava.repository.InMemoryMealRepository;
++import ru.javawebinar.topjava.repository.MealRepository;
+ import ru.javawebinar.topjava.util.MealsUtil;
+ 
+ import javax.servlet.ServletException;
+@@ -9,14 +12,66 @@
+ import javax.servlet.http.HttpServletRequest;
+ import javax.servlet.http.HttpServletResponse;
+ import java.io.IOException;
++import java.time.LocalDateTime;
++import java.time.temporal.ChronoUnit;
++import java.util.Objects;
+ 
+ public class MealServlet extends HttpServlet {
+     private static final Logger log = LoggerFactory.getLogger(MealServlet.class);
+ 
++    private MealRepository repository;
++
++    @Override
++    public void init() {
++        repository = new InMemoryMealRepository();
++    }
++
++    @Override
++    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
++        request.setCharacterEncoding("UTF-8");
++        String id = request.getParameter("id");
++
++        Meal meal = new Meal(id.isEmpty() ? null : Integer.valueOf(id),
++                LocalDateTime.parse(request.getParameter("dateTime")),
++                request.getParameter("description"),
++                Integer.parseInt(request.getParameter("calories")));
++
++        log.info(meal.isNew() ? "Create {}" : "Update {}", meal);
++        repository.save(meal);
++        response.sendRedirect("meals");
++    }
++
+     @Override
+     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        log.info("forward to meals");
+-        request.setAttribute("meals", MealsUtil.getTos(MealsUtil.meals, MealsUtil.DEFAULT_CALORIES_PER_DAY));
+-        request.getRequestDispatcher("/meals.jsp").forward(request, response);
++        String action = request.getParameter("action");
++
++        switch (action == null ? "all" : action) {
++            case "delete":
++                int id = getId(request);
++                log.info("Delete id={}", id);
++                repository.delete(id);
++                response.sendRedirect("meals");
++                break;
++            case "create":
++            case "update":
++                final Meal meal = "create".equals(action) ?
++                        new Meal(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES), "", 1000) :
++                        repository.get(getId(request));
++                request.setAttribute("meal", meal);
++                request.getRequestDispatcher("/mealForm.jsp").forward(request, response);
++                break;
++            case "all":
++            default:
++                log.info("getAll");
++                request.setAttribute("meals",
++                        MealsUtil.getTos(repository.getAll(), MealsUtil.DEFAULT_CALORIES_PER_DAY));
++                request.getRequestDispatcher("/meals.jsp").forward(request, response);
++                break;
++        }
++    }
++
++    private int getId(HttpServletRequest request) {
++        String paramId = Objects.requireNonNull(request.getParameter("id"));
++        return Integer.parseInt(paramId);
+     }
+ }
+Index: src/main/java/ru/javawebinar/topjava/model/Meal.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/Meal.java b/src/main/java/ru/javawebinar/topjava/model/Meal.java
+--- a/src/main/java/ru/javawebinar/topjava/model/Meal.java	(revision e2a712d767ffd8b9909ec1ae7d53cbf47b6929b2)
++++ b/src/main/java/ru/javawebinar/topjava/model/Meal.java	(date 1739464147179)
+@@ -5,6 +5,8 @@
+ import java.time.LocalTime;
+ 
+ public class Meal {
++    private Integer id;
++
+     private final LocalDateTime dateTime;
+ 
+     private final String description;
+@@ -12,11 +14,24 @@
+     private final int calories;
+ 
+     public Meal(LocalDateTime dateTime, String description, int calories) {
++        this(null, dateTime, description, calories);
++    }
++
++    public Meal(Integer id, LocalDateTime dateTime, String description, int calories) {
++        this.id = id;
+         this.dateTime = dateTime;
+         this.description = description;
+         this.calories = calories;
+     }
+ 
++    public Integer getId() {
++        return id;
++    }
++
++    public void setId(Integer id) {
++        this.id = id;
++    }
++
+     public LocalDateTime getDateTime() {
+         return dateTime;
+     }
+@@ -36,4 +51,18 @@
+     public LocalTime getTime() {
+         return dateTime.toLocalTime();
+     }
++
++    public boolean isNew() {
++        return id == null;
++    }
++
++    @Override
++    public String toString() {
++        return "Meal{" +
++                "id=" + id +
++                ", dateTime=" + dateTime +
++                ", description='" + description + '\'' +
++                ", calories=" + calories +
++                '}';
++    }
+ }
+Index: src/main/java/ru/javawebinar/topjava/model/MealTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/model/MealTo.java b/src/main/java/ru/javawebinar/topjava/model/MealTo.java
+--- a/src/main/java/ru/javawebinar/topjava/model/MealTo.java	(revision e2a712d767ffd8b9909ec1ae7d53cbf47b6929b2)
++++ b/src/main/java/ru/javawebinar/topjava/model/MealTo.java	(date 1739464147194)
+@@ -3,6 +3,8 @@
+ import java.time.LocalDateTime;
+ 
+ public class MealTo {
++    private final Integer id;
++
+     private final LocalDateTime dateTime;
+ 
+     private final String description;
+@@ -11,13 +13,18 @@
+ 
+     private final boolean excess;
+ 
+-    public MealTo(LocalDateTime dateTime, String description, int calories, boolean excess) {
++    public MealTo(Integer id, LocalDateTime dateTime, String description, int calories, boolean excess) {
++        this.id = id;
+         this.dateTime = dateTime;
+         this.description = description;
+         this.calories = calories;
+         this.excess = excess;
+     }
+ 
++    public Integer getId() {
++        return id;
++    }
++
+     public LocalDateTime getDateTime() {
+         return dateTime;
+     }
+@@ -37,7 +44,8 @@
+     @Override
+     public String toString() {
+         return "MealTo{" +
+-                "dateTime=" + dateTime +
++                "id=" + id +
++                ", dateTime=" + dateTime +
+                 ", description='" + description + '\'' +
+                 ", calories=" + calories +
+                 ", excess=" + excess +

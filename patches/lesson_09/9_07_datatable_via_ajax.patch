@@ -1,0 +1,221 @@
+Subject: [PATCH] 9_07_datatable_via_ajax
+---
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision 0ab764eb72d582682ec392a7ff758b84a52e43c3)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1680732486000)
+@@ -74,6 +74,18 @@
+     }).show();
+ }
+ 
++function renderEditBtn(data, type, row) {
++    if (type === "display") {
++        return "<a onclick='updateRow(" + row.id + ");'><span class='fa fa-pencil'></span></a>";
++    }
++}
++
++function renderDeleteBtn(data, type, row) {
++    if (type === "display") {
++        return "<a onclick='deleteRow(" + row.id + ");'><span class='fa fa-remove'></span></a>";
++    }
++}
++
+ function failNoty(jqXHR) {
+     closeNoty();
+     failedNote = new Noty({
+Index: src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java
+--- a/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(revision 0ab764eb72d582682ec392a7ff758b84a52e43c3)
++++ b/src/test/java/ru/javawebinar/topjava/web/RootControllerTest.java	(date 1680732585131)
+@@ -1,16 +1,11 @@
+ package ru.javawebinar.topjava.web;
+ 
+-import org.assertj.core.matcher.AssertionMatcher;
+ import org.junit.jupiter.api.Test;
+-import ru.javawebinar.topjava.model.User;
+-
+-import java.util.List;
+ 
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+ import static ru.javawebinar.topjava.MealTestData.meals;
+-import static ru.javawebinar.topjava.UserTestData.*;
+ import static ru.javawebinar.topjava.util.MealsUtil.getTos;
+ 
+ class RootControllerTest extends AbstractControllerTest {
+@@ -21,15 +16,7 @@
+                 .andDo(print())
+                 .andExpect(status().isOk())
+                 .andExpect(view().name("users"))
+-                .andExpect(forwardedUrl("/WEB-INF/jsp/users.jsp"))
+-                .andExpect(model().attribute("users",
+-                        new AssertionMatcher<List<User>>() {
+-                            @Override
+-                            public void assertion(List<User> actual) throws AssertionError {
+-                                USER_MATCHER.assertMatch(actual, admin, guest, user);
+-                            }
+-                        }
+-                ));
++                .andExpect(forwardedUrl("/WEB-INF/jsp/users.jsp"));
+     }
+ 
+     @Test
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision 0ab764eb72d582682ec392a7ff758b84a52e43c3)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1680732486008)
+@@ -29,18 +29,6 @@
+                 <th></th>
+             </tr>
+             </thead>
+-            <c:forEach items="${requestScope.users}" var="user">
+-                <jsp:useBean id="user" type="ru.javawebinar.topjava.model.User"/>
+-                <tr data-user-enabled="${user.enabled}">
+-                    <td><c:out value="${user.name}"/></td>
+-                    <td><a href="mailto:${user.email}">${user.email}</a></td>
+-                    <td>${user.roles}</td>
+-                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if> onclick="enable($(this), ${user.id})"/></td>
+-                    <td><fmt:formatDate value="${user.registered}" pattern="dd-MMMM-yyyy"/></td>
+-                    <td><a onclick=updateRow(${user.id})><span class="fa fa-pencil"></span></a></td>
+-                    <td><a onclick="deleteRow(${user.id})"><span class="fa fa-remove"></span></a></td>
+-                </tr>
+-            </c:forEach>
+         </table>
+     </div>
+ </div>
+Index: src/main/java/ru/javawebinar/topjava/web/RootController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/RootController.java b/src/main/java/ru/javawebinar/topjava/web/RootController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/RootController.java	(revision 0ab764eb72d582682ec392a7ff758b84a52e43c3)
++++ b/src/main/java/ru/javawebinar/topjava/web/RootController.java	(date 1680732485995)
+@@ -8,7 +8,6 @@
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PostMapping;
+ import ru.javawebinar.topjava.service.MealService;
+-import ru.javawebinar.topjava.service.UserService;
+ import ru.javawebinar.topjava.util.MealsUtil;
+ 
+ import javax.servlet.http.HttpServletRequest;
+@@ -17,9 +16,6 @@
+ public class RootController {
+     private static final Logger log = LoggerFactory.getLogger(RootController.class);
+ 
+-    @Autowired
+-    private UserService userService;
+-
+     @Autowired
+     private MealService mealService;
+ 
+@@ -30,9 +26,8 @@
+     }
+ 
+     @GetMapping("/users")
+-    public String getUsers(Model model) {
++    public String getUsers() {
+         log.info("users");
+-        model.addAttribute("users", userService.getAll());
+         return "users";
+     }
+ 
+Index: src/main/webapp/resources/js/topjava.users.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.users.js b/src/main/webapp/resources/js/topjava.users.js
+--- a/src/main/webapp/resources/js/topjava.users.js	(revision 0ab764eb72d582682ec392a7ff758b84a52e43c3)
++++ b/src/main/webapp/resources/js/topjava.users.js	(date 1680732486004)
+@@ -27,6 +27,10 @@
+ $(function () {
+     makeEditable(
+         $("#datatable").DataTable({
++            "ajax": {
++                "url": userAjaxUrl,
++                "dataSrc": ""
++            },
+             "paging": false,
+             "info": true,
+             "columns": [
+@@ -34,24 +38,44 @@
+                     "data": "name"
+                 },
+                 {
+-                    "data": "email"
++                    "data": "email",
++                    "render": function (data, type, row) {
++                        if (type === "display") {
++                            return "<a href='mailto:" + data + "'>" + data + "</a>";
++                        }
++                        return data;
++                    }
+                 },
+                 {
+                     "data": "roles"
+                 },
+                 {
+-                    "data": "enabled"
++                    "data": "enabled",
++                    "render": function (data, type, row) {
++                        if (type === "display") {
++                            return "<input type='checkbox' " + (data ? "checked" : "") + " onclick='enable($(this)," + row.id + ");'/>";
++                        }
++                        return data;
++                    }
+                 },
+                 {
+-                    "data": "registered"
++                    "data": "registered",
++                    "render": function (date, type, row) {
++                        if (type === "display") {
++                            return date.substring(0, 10);
++                        }
++                        return date;
++                    }
+                 },
+                 {
+-                    "defaultContent": "Edit",
+-                    "orderable": false
++                    "orderable": false,
++                    "defaultContent": "",
++                    "render": renderEditBtn
+                 },
+                 {
+-                    "defaultContent": "Delete",
+-                    "orderable": false
++                    "orderable": false,
++                    "defaultContent": "",
++                    "render": renderDeleteBtn
+                 }
+             ],
+             "order": [
+@@ -59,7 +83,12 @@
+                     0,
+                     "asc"
+                 ]
+-            ]
++            ],
++            "createdRow": function (row, data, dataIndex) {
++                if (!data.enabled) {
++                    $(row).attr("data-user-enabled", false);
++                }
++            }
+         })
+     );
+ });
+\ No newline at end of file

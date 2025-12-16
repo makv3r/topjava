@@ -1,0 +1,69 @@
+Index: src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java	(revision 30ae536a850283e1631e8f02adb9c7be03bd9e6b)
++++ src/main/java/ru/javawebinar/topjava/web/meal/JspMealController.java	(date 1595458514299)
+@@ -24,7 +24,7 @@
+     @GetMapping("/delete")
+     public String delete(HttpServletRequest request) {
+         super.delete(getId(request));
+-        return "redirect:meals";
++        return "redirect:/meals";
+     }
+ 
+     @GetMapping("/update")
+@@ -50,7 +50,7 @@
+         } else {
+             super.update(meal, getId(request));
+         }
+-        return "redirect:meals";
++        return "redirect:/meals";
+     }
+ 
+     @GetMapping("/filter")
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision 30ae536a850283e1631e8f02adb9c7be03bd9e6b)
++++ src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1595458463091)
+@@ -5,5 +5,6 @@
+ <head>
+     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+     <title><spring:message code="app.title"/></title>
++    <base href="${pageContext.request.contextPath}/"/>
+     <link rel="stylesheet" href="resources/css/style.css">
+ </head>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/web.xml	(revision 30ae536a850283e1631e8f02adb9c7be03bd9e6b)
++++ src/main/webapp/WEB-INF/web.xml	(date 1595458463097)
+@@ -36,4 +36,21 @@
+         <servlet-name>mvc-dispatcher</servlet-name>
+         <url-pattern>/</url-pattern>
+     </servlet-mapping>
++
++    <filter>
++        <filter-name>encodingFilter</filter-name>
++        <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
++        <init-param>
++            <param-name>encoding</param-name>
++            <param-value>UTF-8</param-value>
++        </init-param>
++        <init-param>
++            <param-name>forceEncoding</param-name>
++            <param-value>true</param-value>
++        </init-param>
++    </filter>
++    <filter-mapping>
++        <filter-name>encodingFilter</filter-name>
++        <url-pattern>/*</url-pattern>
++    </filter-mapping>
+ </web-app>

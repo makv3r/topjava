@@ -1,0 +1,294 @@
+Subject: [PATCH] 5_5_profiles_connection_pool
+---
+Index: src/main/resources/db/postgres.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/src/main/resources/db/postgres.properties b/src/main/resources/db/postgres.properties
+--- a/src/main/resources/db/postgres.properties	(revision 182b16ae2de13acd6a13bc81a6ba03e9a28e0a9b)
++++ b/src/main/resources/db/postgres.properties	(date 1751041593101)
+@@ -1,7 +1,6 @@
+ database.url=jdbc:postgresql://localhost:5432/topjava
+ database.username=user
+ database.password=password
+-database.driverClassName=org.postgresql.Driver
+ 
+ database.init=true
+ jdbc.initLocation=classpath:db/initDB.sql
+Index: src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(revision 182b16ae2de13acd6a13bc81a6ba03e9a28e0a9b)
++++ b/src/test/java/ru/javawebinar/topjava/service/MealServiceTest.java	(date 1751041593119)
+@@ -9,11 +9,13 @@
+ import org.junit.runner.RunWith;
+ import org.slf4j.Logger;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.dao.DataAccessException;
+ import org.springframework.test.context.ContextConfiguration;
+ import org.springframework.test.context.jdbc.Sql;
+ import org.springframework.test.context.jdbc.SqlConfig;
+ import org.springframework.test.context.junit4.SpringRunner;
++import ru.javawebinar.topjava.Profiles;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+@@ -33,6 +35,7 @@
+ })
+ @RunWith(SpringRunner.class)
+ @Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
++@ActiveProfiles(Profiles.ACTIVE_DB)
+ public class MealServiceTest {
+     private static final Logger log = getLogger("result");
+ 
+Index: src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java
+--- a/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(revision 182b16ae2de13acd6a13bc81a6ba03e9a28e0a9b)
++++ b/src/test/java/ru/javawebinar/topjava/service/UserServiceTest.java	(date 1751041593129)
+@@ -4,10 +4,12 @@
+ import org.junit.runner.RunWith;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.dao.DataAccessException;
++import org.springframework.test.context.ActiveProfiles;
+ import org.springframework.test.context.ContextConfiguration;
+ import org.springframework.test.context.jdbc.Sql;
+ import org.springframework.test.context.jdbc.SqlConfig;
+ import org.springframework.test.context.junit4.SpringRunner;
++import ru.javawebinar.topjava.Profiles;
+ import ru.javawebinar.topjava.UserTestData;
+ import ru.javawebinar.topjava.model.Role;
+ import ru.javawebinar.topjava.model.User;
+@@ -24,6 +26,7 @@
+ })
+ @RunWith(SpringRunner.class)
+ @Sql(scripts = "classpath:db/populateDB.sql", config = @SqlConfig(encoding = "UTF-8"))
++@ActiveProfiles(Profiles.ACTIVE_DB)
+ public class UserServiceTest {
+ 
+     @Autowired
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-db.xml b/src/main/resources/spring/spring-db.xml
+--- a/src/main/resources/spring/spring-db.xml	(revision 182b16ae2de13acd6a13bc81a6ba03e9a28e0a9b)
++++ b/src/main/resources/spring/spring-db.xml	(date 1751041593112)
+@@ -9,20 +9,6 @@
+        http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+ 
+-<!-- Change DB by comment/uncomment property-placeholder -->
+-
+-    <context:property-placeholder location="classpath:db/postgres.properties" system-properties-mode="OVERRIDE"/>
+-<!--    <context:property-placeholder location="classpath:db/hsqldb.properties" system-properties-mode="OVERRIDE"/>-->
+-
+-<!--
+-    For postgres driver logging
+-    It uses java.util.logging and logged via jul-to-slf4j bridge
+-    https://stackoverflow.com/a/27296470/548473
+--->
+-    <bean class="org.springframework.beans.factory.config.MethodInvokingBean">
+-        <property name="staticMethod" value="org.slf4j.bridge.SLF4JBridgeHandler.install" />
+-    </bean>
+-
+     <context:component-scan base-package="ru.javawebinar.**.repository.jpa"/>
+ 
+     <jdbc:initialize-database data-source="dataSource" enabled="${database.init}">
+@@ -30,15 +16,6 @@
+         <jdbc:script encoding="utf-8" location="classpath:db/populateDB.sql"/>
+     </jdbc:initialize-database>
+ 
+-    <!--no pooling-->
+-    <bean id="dataSource"
+-          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+-        <property name="driverClassName" value="${database.driverClassName}"/>
+-        <property name="url" value="${database.url}"/>
+-        <property name="username" value="${database.username}"/>
+-        <property name="password" value="${database.password}"/>
+-    </bean>
+-
+     <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean"
+           p:dataSource-ref="dataSource"
+           p:packagesToScan="ru.javawebinar.**.model">
+@@ -76,4 +53,36 @@
+             <constructor-arg ref="jdbcTemplate"/>
+         </bean>
+     -->
++
++    <beans profile="hsqldb">
++        <context:property-placeholder location="classpath:db/hsqldb.properties" system-properties-mode="OVERRIDE"/>
++
++        <!--no pooling-->
++        <bean id="dataSource"
++              class="org.springframework.jdbc.datasource.DriverManagerDataSource"
++              p:driverClassName="org.hsqldb.jdbcDriver"
++              p:url="${database.url}"
++              p:username="${database.username}"
++              p:password="${database.password}"/>
++    </beans>
++
++    <beans profile="postgres">
++        <!--
++            For postgres driver logging
++            It uses java.util.logging and logged via jul-to-slf4j bridge
++            https://stackoverflow.com/a/27296470/548473
++        -->
++        <bean class="org.springframework.beans.factory.config.MethodInvokingBean">
++            <property name="staticMethod" value="org.slf4j.bridge.SLF4JBridgeHandler.install"/>
++        </bean>
++
++        <context:property-placeholder location="classpath:db/postgres.properties" system-properties-mode="OVERRIDE"/>
++
++        <bean id="dataSource"
++              class="org.apache.tomcat.jdbc.pool.DataSource"
++              p:driverClassName="org.postgresql.Driver"
++              p:url="${database.url}"
++              p:username="${database.username}"
++              p:password="${database.password}"/>
++    </beans>
+ </beans>
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 182b16ae2de13acd6a13bc81a6ba03e9a28e0a9b)
++++ b/pom.xml	(date 1751041676970)
+@@ -16,6 +16,7 @@
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <spring.version>5.3.39</spring.version>
++        <tomcat.version>9.0.106</tomcat.version>
+ 
+         <!-- Hibernate -->
+         <hibernate.version>5.6.15.Final</hibernate.version>
+@@ -69,13 +70,6 @@
+             <artifactId>slf4j-api</artifactId>
+             <version>${slf4j.version}</version>
+         </dependency>
+-
+-        <dependency>
+-            <groupId>org.slf4j</groupId>
+-            <artifactId>jul-to-slf4j</artifactId>
+-            <version>${slf4j.version}</version>
+-            <scope>runtime</scope>
+-        </dependency>
+ 
+         <dependency>
+             <groupId>ch.qos.logback</groupId>
+@@ -110,19 +104,6 @@
+             <version>${spring.version}</version>
+         </dependency>
+ 
+-        <!--DataBase-->
+-        <dependency>
+-            <groupId>org.postgresql</groupId>
+-            <artifactId>postgresql</artifactId>
+-            <version>${postgresql.version}</version>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.hsqldb</groupId>
+-            <artifactId>hsqldb</artifactId>
+-            <version>2.3.4</version>
+-        </dependency>
+-
+-
+         <!--- ORM -->
+         <dependency>
+             <groupId>org.hibernate</groupId>
+@@ -179,6 +160,42 @@
+     </dependencies>
+ 
+     <profiles>
++        <profile>
++            <id>hsqldb</id>
++            <dependencies>
++                <dependency>
++                    <groupId>org.hsqldb</groupId>
++                    <artifactId>hsqldb</artifactId>
++                    <version>2.3.4</version>
++                </dependency>
++            </dependencies>
++        </profile>
++
++        <profile>
++            <id>postgres</id>
++            <dependencies>
++                <dependency>
++                    <groupId>org.postgresql</groupId>
++                    <artifactId>postgresql</artifactId>
++                    <version>${postgresql.version}</version>
++                </dependency>
++                <dependency>
++                    <groupId>org.apache.tomcat</groupId>
++                    <artifactId>tomcat-jdbc</artifactId>
++                    <version>${tomcat.version}</version>
++                    <scope>provided</scope>
++                </dependency>
++                <dependency>
++                    <groupId>org.slf4j</groupId>
++                    <artifactId>jul-to-slf4j</artifactId>
++                    <version>${slf4j.version}</version>
++                    <scope>runtime</scope>
++                </dependency>
++            </dependencies>
++            <activation>
++                <activeByDefault>true</activeByDefault>
++            </activation>
++        </profile>
+     </profiles>
+ 
+     <dependencyManagement>
+Index: src/main/resources/db/hsqldb.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/src/main/resources/db/hsqldb.properties b/src/main/resources/db/hsqldb.properties
+--- a/src/main/resources/db/hsqldb.properties	(revision 182b16ae2de13acd6a13bc81a6ba03e9a28e0a9b)
++++ b/src/main/resources/db/hsqldb.properties	(date 1751041593051)
+@@ -3,7 +3,6 @@
+ database.url=jdbc:hsqldb:mem:topjava
+ database.username=sa
+ database.password=
+-database.driverClassName=org.hsqldb.jdbcDriver
+ 
+ database.init=true
+ jdbc.initLocation=classpath:db/initDB_hsql.sql
+Index: src/main/java/ru/javawebinar/topjava/Profiles.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/Profiles.java b/src/main/java/ru/javawebinar/topjava/Profiles.java
+new file mode 100644
+--- /dev/null	(date 1751041593001)
++++ b/src/main/java/ru/javawebinar/topjava/Profiles.java	(date 1751041593001)
+@@ -0,0 +1,15 @@
++package ru.javawebinar.topjava;
++
++public class Profiles {
++    public static final String
++            JDBC = "jdbc",
++            JPA = "jpa";
++
++    public static final String REPOSITORY_IMPLEMENTATION = JPA;
++
++    public static final String
++            POSTGRES_DB = "postgres",
++            HSQL_DB = "hsqldb";
++
++    public static final String ACTIVE_DB = POSTGRES_DB;
++}

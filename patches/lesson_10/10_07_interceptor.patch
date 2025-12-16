@@ -1,0 +1,101 @@
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision 9662d87816cf9aeb2bd24edc8825e55cbd8ba3b2)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1618451628141)
+@@ -69,4 +69,8 @@
+         <property name="basenames" value="file:///#{systemEnvironment[TOPJAVA_ROOT]}/config/messages/app"/>
+         <property name="fallbackToSystemLocale" value="false"/>
+     </bean>
++
++    <mvc:interceptors>
++        <bean class="ru.javawebinar.topjava.web.interceptor.ModelInterceptor"/>
++    </mvc:interceptors>
+ </beans>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java b/src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java
+new file mode 100644
+--- /dev/null	(date 1618452887885)
++++ b/src/main/java/ru/javawebinar/topjava/web/interceptor/ModelInterceptor.java	(date 1618452887885)
+@@ -0,0 +1,25 @@
++package ru.javawebinar.topjava.web.interceptor;
++
++import org.springframework.web.servlet.HandlerInterceptor;
++import org.springframework.web.servlet.ModelAndView;
++import ru.javawebinar.topjava.AuthorizedUser;
++import ru.javawebinar.topjava.web.SecurityUtil;
++
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++
++/**
++ * This interceptor adds userTo to the model of every requests
++ */
++public class ModelInterceptor implements HandlerInterceptor {
++
++    @Override
++    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
++        if (modelAndView != null && !modelAndView.isEmpty()) {
++            AuthorizedUser authorizedUser = SecurityUtil.safeGet();
++            if (authorizedUser != null) {
++                modelAndView.getModelMap().addAttribute("userTo", authorizedUser.getUserTo());
++            }
++        }
++    }
++}
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 9662d87816cf9aeb2bd24edc8825e55cbd8ba3b2)
++++ b/config/messages/app_ru.properties	(date 1618452874720)
+@@ -6,6 +6,7 @@
+ Весь REST интерфейс покрывается JUnit тестами, используя Spring MVC Test и Spring Security Test.
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
++app.profile=профиль
+ 
+ user.title=Пользователи
+ user.edit=Редактировать пользователя
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 9662d87816cf9aeb2bd24edc8825e55cbd8ba3b2)
++++ b/config/messages/app.properties	(date 1618452874720)
+@@ -6,6 +6,7 @@
+ All REST interface covered with JUnit tests by Spring MVC Test и Spring Security Test.
+ app.footer=<a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> internship application
+ app.login=Login as
++app.profile=profile
+ 
+ user.title=Users
+ user.edit=Edit user
+Index: src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp b/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(revision 9662d87816cf9aeb2bd24edc8825e55cbd8ba3b2)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(date 1618451628185)
+@@ -10,6 +10,7 @@
+                 <sec:authorize access="hasRole('ADMIN')">
+                     <a class="btn btn-info mr-1" href="users"><spring:message code="user.title"/></a>
+                 </sec:authorize>
++                <a class="btn btn-info mr-1" href="profile">${userTo.name} <spring:message code="app.profile"/></a>
+                 <a class="btn btn-primary my-1" href="logout">
+                     <span class="fa fa-sign-out"></span>
+                 </a>

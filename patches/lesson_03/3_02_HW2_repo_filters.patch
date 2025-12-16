@@ -1,0 +1,134 @@
+Subject: [PATCH] 3_02_HW2_repo_filters
+---
+Index: src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(revision 92f2312cc1117e03a4ee37d7b238aef8cb68c92f)
++++ b/src/main/java/ru/javawebinar/topjava/util/MealsUtil.java	(date 1750278551227)
+@@ -32,7 +32,7 @@
+     }
+ 
+     public static List<MealTo> getFilteredTos(Collection<Meal> meals, int caloriesPerDay, LocalTime startTime, LocalTime endTime) {
+-        return filterByPredicate(meals, caloriesPerDay, meal -> DateTimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime));
++        return filterByPredicate(meals, caloriesPerDay, meal -> Util.isBetweenHalfOpen(meal.getTime(), startTime, endTime));
+     }
+ 
+     private static List<MealTo> filterByPredicate(Collection<Meal> meals, int caloriesPerDay, Predicate<Meal> filter) {
+Index: src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(revision 92f2312cc1117e03a4ee37d7b238aef8cb68c92f)
++++ b/src/main/java/ru/javawebinar/topjava/repository/MealRepository.java	(date 1750278531294)
+@@ -2,6 +2,7 @@
+ 
+ import ru.javawebinar.topjava.model.Meal;
+ 
++import java.time.LocalDateTime;
+ import java.util.List;
+ 
+ public interface MealRepository {
+@@ -16,4 +17,7 @@
+ 
+     // ORDERED dateTime desc
+     List<Meal> getAll(int userId);
++
++    // ORDERED dateTime desc
++    List<Meal> getBetweenHalfOpen(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId);
+ }
+Index: src/main/java/ru/javawebinar/topjava/util/Util.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/Util.java b/src/main/java/ru/javawebinar/topjava/util/Util.java
+new file mode 100644
+--- /dev/null	(date 1750278551253)
++++ b/src/main/java/ru/javawebinar/topjava/util/Util.java	(date 1750278551253)
+@@ -0,0 +1,9 @@
++package ru.javawebinar.topjava.util;
++
++import org.springframework.lang.Nullable;
++
++public class Util {
++    public static <T extends Comparable<T>> boolean isBetweenHalfOpen(T value, @Nullable T start, @Nullable T end) {
++        return (start == null || value.compareTo(start) >= 0) && (end == null || value.compareTo(end) < 0);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java
+--- a/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(revision 92f2312cc1117e03a4ee37d7b238aef8cb68c92f)
++++ b/src/main/java/ru/javawebinar/topjava/repository/inmemory/InMemoryMealRepository.java	(date 1750278531288)
+@@ -5,6 +5,7 @@
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.repository.MealRepository;
+ import ru.javawebinar.topjava.util.MealsUtil;
++import ru.javawebinar.topjava.util.Util;
+ 
+ import java.time.LocalDateTime;
+ import java.time.Month;
+@@ -14,6 +15,7 @@
+ import java.util.Map;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+ import static ru.javawebinar.topjava.repository.inmemory.InMemoryUserRepository.ADMIN_ID;
+@@ -57,11 +59,21 @@
+         return meals == null ? null : meals.get(id);
+     }
+ 
++    @Override
++    public List<Meal> getBetweenHalfOpen(LocalDateTime startDateTime, LocalDateTime endDateTime, int userId) {
++        return filterByPredicate(userId, meal -> Util.isBetweenHalfOpen(meal.getDateTime(), startDateTime, endDateTime));
++    }
++
+     @Override
+     public List<Meal> getAll(int userId) {
++        return filterByPredicate(userId, meal -> true);
++    }
++
++    private List<Meal> filterByPredicate(int userId, Predicate<Meal> filter) {
+         Map<Integer, Meal> meals = usersMealsMap.get(userId);
+         return CollectionUtils.isEmpty(meals) ? Collections.emptyList() :
+                 meals.values().stream()
++                        .filter(filter)
+                         .sorted(Comparator.comparing(Meal::getDateTime).reversed())
+                         .collect(Collectors.toList());
+     }
+Index: src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(revision 92f2312cc1117e03a4ee37d7b238aef8cb68c92f)
++++ b/src/main/java/ru/javawebinar/topjava/util/DateTimeUtil.java	(date 1750278707145)
+@@ -1,16 +1,11 @@
+ package ru.javawebinar.topjava.util;
+ 
+ import java.time.LocalDateTime;
+-import java.time.LocalTime;
+ import java.time.format.DateTimeFormatter;
+ 
+ public class DateTimeUtil {
+     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+ 
+-    public static boolean isBetweenHalfOpen(LocalTime lt, LocalTime startTime, LocalTime endTime) {
+-        return !lt.isBefore(startTime) && lt.isBefore(endTime);
+-    }
+-
+     public static String toString(LocalDateTime ldt) {
+         return ldt == null ? "" : ldt.format(DATE_TIME_FORMATTER);
+     }

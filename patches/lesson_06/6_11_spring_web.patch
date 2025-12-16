@@ -1,0 +1,152 @@
+Index: src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(revision d38777cf37c7109c8a4d97b71ce69b0fc1c64a78)
++++ b/src/main/java/ru/javawebinar/topjava/web/MealServlet.java	(date 1678291914016)
+@@ -1,8 +1,8 @@
+ package ru.javawebinar.topjava.web;
+ 
+-import org.springframework.context.support.ClassPathXmlApplicationContext;
+ import org.springframework.util.StringUtils;
+-import ru.javawebinar.topjava.Profiles;
++import org.springframework.web.context.WebApplicationContext;
++import org.springframework.web.context.support.WebApplicationContextUtils;
+ import ru.javawebinar.topjava.model.Meal;
+ import ru.javawebinar.topjava.web.meal.MealRestController;
+ 
+@@ -22,24 +22,14 @@
+ 
+ public class MealServlet extends HttpServlet {
+ 
+-    private ClassPathXmlApplicationContext springContext;
+     private MealRestController mealController;
+ 
+     @Override
+     public void init() {
+-        springContext = new ClassPathXmlApplicationContext(new String[]{"spring/spring-app.xml", "spring/spring-db.xml"}, false);
+-//       springContext.setConfigLocations("spring/spring-app.xml", "spring/spring-db.xml");
+-        springContext.getEnvironment().setActiveProfiles(Profiles.getActiveDbProfile(), Profiles.REPOSITORY_IMPLEMENTATION);
+-        springContext.refresh();
++        WebApplicationContext springContext = WebApplicationContextUtils.getRequiredWebApplicationContext(getServletContext());
+         mealController = springContext.getBean(MealRestController.class);
+     }
+ 
+-    @Override
+-    public void destroy() {
+-        springContext.close();
+-        super.destroy();
+-    }
+-
+     @Override
+     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+         request.setCharacterEncoding("UTF-8");
+Index: src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java
+--- a/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(revision d38777cf37c7109c8a4d97b71ce69b0fc1c64a78)
++++ b/src/main/java/ru/javawebinar/topjava/web/UserServlet.java	(date 1678291914027)
+@@ -1,6 +1,9 @@
+ package ru.javawebinar.topjava.web;
+ 
+ import org.slf4j.Logger;
++import org.springframework.web.context.WebApplicationContext;
++import org.springframework.web.context.support.WebApplicationContextUtils;
++import ru.javawebinar.topjava.web.user.AdminRestController;
+ 
+ import javax.servlet.ServletException;
+ import javax.servlet.http.HttpServlet;
+@@ -13,6 +16,14 @@
+ public class UserServlet extends HttpServlet {
+     private static final Logger log = getLogger(UserServlet.class);
+ 
++    private AdminRestController adminController;
++
++    @Override
++    public void init() throws ServletException {
++        WebApplicationContext springContext = WebApplicationContextUtils.getRequiredWebApplicationContext(getServletContext());
++        adminController = springContext.getBean(AdminRestController.class);
++    }
++
+     @Override
+     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+         int userId = Integer.parseInt(request.getParameter("userId"));
+@@ -22,7 +33,8 @@
+ 
+     @Override
+     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+-        log.debug("forward to users");
++        log.debug("getAll");
++        request.setAttribute("users", adminController.getAll());
+         request.getRequestDispatcher("/users.jsp").forward(request, response);
+     }
+ }
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision d38777cf37c7109c8a4d97b71ce69b0fc1c64a78)
++++ b/pom.xml	(date 1678291943633)
+@@ -152,9 +152,9 @@
+ 
+         <!--Web-->
+         <dependency>
+-            <groupId>javax.servlet</groupId>
+-            <artifactId>javax.servlet-api</artifactId>
+-            <version>4.0.1</version>
++            <groupId>org.apache.tomcat</groupId>
++            <artifactId>tomcat-servlet-api</artifactId>
++            <version>${tomcat.version}</version>
+             <scope>provided</scope>
+         </dependency>
+ 
+@@ -163,6 +163,11 @@
+             <artifactId>jstl</artifactId>
+             <version>1.2</version>
+         </dependency>
++
++        <dependency>
++            <groupId>org.springframework</groupId>
++            <artifactId>spring-web</artifactId>
++        </dependency>
+ 
+         <!--Test-->
+         <dependency>
+Index: src/main/webapp/WEB-INF/web.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/web.xml b/src/main/webapp/WEB-INF/web.xml
+--- a/src/main/webapp/WEB-INF/web.xml	(revision d38777cf37c7109c8a4d97b71ce69b0fc1c64a78)
++++ b/src/main/webapp/WEB-INF/web.xml	(date 1678291914052)
+@@ -6,6 +6,22 @@
+ 
+     <display-name>TopJava</display-name>
+ 
++    <context-param>
++        <param-name>spring.profiles.default</param-name>
++        <param-value>postgres,datajpa</param-value>
++    </context-param>
++
++    <context-param>
++        <param-name>contextConfigLocation</param-name>
++        <param-value>
++            classpath:spring/spring-app.xml
++            classpath:spring/spring-db.xml
++        </param-value>
++    </context-param>
++
++    <listener>
++        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
++    </listener>
+     <servlet>
+         <servlet-name>userServlet</servlet-name>
+         <servlet-class>ru.javawebinar.topjava.web.UserServlet</servlet-class>

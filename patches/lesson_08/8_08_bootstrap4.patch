@@ -1,0 +1,357 @@
+Subject: [PATCH] 8_08_bootstrap4
+---
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1732785641506)
+@@ -37,6 +37,9 @@
+     <!--  all resources inside folder src/main/webapp/resources are mapped so they can be referred to inside JSP files -->
+     <mvc:resources mapping="/resources/**" location="/resources/"/>
+ 
++    <!-- use WebJars so Javascript and CSS libs can be declared as Maven dependencies (Bootstrap, jQuery...) -->
++    <mvc:resources mapping="/webjars/**" location="classpath:/META-INF/resources/webjars/"/>
++
+     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver"
+           p:prefix="/WEB-INF/jsp/"
+           p:suffix=".jsp"/>
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/config/messages/app_ru.properties	(date 1732786196202)
+@@ -1,9 +1,10 @@
+ app.title=Подсчет калорий
+-app.home=Главная
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
+ 
+ user.title=Пользователи
++user.edit=Редактировать пользователя
++user.add=Добавить пользователя
+ user.name=Имя
+ user.email=Почта
+ user.roles=Роли
+@@ -11,8 +12,8 @@
+ user.registered=Зарегистрирован
+ 
+ meal.title=Моя еда
+-meal.edit=Редактирование еды
+-meal.add=Добавление еды
++meal.edit=Редактировать еду
++meal.add=Добавить еду
+ meal.filter=Отфильтровать
+ meal.startDate=От даты (включая)
+ meal.endDate=До даты (включая)
+@@ -22,6 +23,7 @@
+ meal.dateTime=Дата/Время
+ meal.calories=Калории
+ 
++common.add=Добавить
+ common.select=Выбрать
+ common.delete=Удалить
+ common.update=Обновить
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/config/messages/app.properties	(date 1732786196202)
+@@ -1,9 +1,10 @@
+ app.title=Calories management
+-app.home=Home
+-app.footer=Internship <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> application
++app.footer=<a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> internship application
+ app.login=Login as
+ 
+ user.title=Users
++user.edit=Edit user
++user.add=Add user
+ user.name=Name
+ user.email=Email
+ user.roles=Roles
+@@ -22,6 +23,7 @@
+ meal.dateTime=Date/Time
+ meal.calories=Calories
+ 
++common.add=Add
+ common.select=Select
+ common.delete=Delete
+ common.update=Update
+Index: src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/headTag.jsp	(date 1732786196204)
+@@ -6,5 +6,9 @@
+     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+     <title><spring:message code="app.title"/></title>
+     <base href="${pageContext.request.contextPath}/"/>
+-    <link rel="stylesheet" href="resources/css/style.css">
++
++    <link rel="stylesheet" href="resources/css/style.css?v=2">
++    <link rel="stylesheet" href="webjars/bootstrap/4.6.2/css/bootstrap.min.css">
++    <link rel="stylesheet" href="webjars/noty/3.1.4/demo/font-awesome/css/font-awesome.min.css">
++    <link rel="shortcut icon" href="resources/images/icon-meal.png">
+ </head>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/fragments/footer.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/footer.jsp b/src/main/webapp/WEB-INF/jsp/fragments/footer.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/footer.jsp	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/footer.jsp	(date 1732785641519)
+@@ -1,4 +1,8 @@
+ <%@page contentType="text/html" pageEncoding="UTF-8" %>
+ <%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+-<hr>
+-<footer><spring:message code="app.footer"/></footer>
+\ No newline at end of file
++<%--https://getbootstrap.com/docs/4.0/examples/sticky-footer/--%>
++<footer class="footer">
++    <div class="container">
++        <span class="text-muted"><spring:message code="app.footer"/></span>
++    </div>
++</footer>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp b/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp
+--- a/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/webapp/WEB-INF/jsp/fragments/bodyHeader.jsp	(date 1732785641515)
+@@ -1,6 +1,14 @@
+ <%@page contentType="text/html" pageEncoding="UTF-8" %>
+ <%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+ 
+-<header>
+-    <a href="meals"><spring:message code="app.title"/></a> | <a href="users"><spring:message code="user.title"/></a> | <a href="${pageContext.request.contextPath}"><spring:message code="app.home"/></a>
+-</header>
+\ No newline at end of file
++<nav class="navbar navbar-dark bg-dark py-0">
++    <div class="container">
++        <a href="meals" class="navbar-brand"><img src="resources/images/icon-meal.png"> <spring:message code="app.title"/></a>
++        <form class="form-inline my-2">
++            <a class="btn btn-info mr-1" href="users"><spring:message code="user.title"/></a>
++            <a class="btn btn-primary" href="">
++                <span class="fa fa-sign-in"></span>
++            </a>
++        </form>
++    </div>
++</nav>
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1732786196204)
+@@ -8,31 +8,40 @@
+ <body>
+ <jsp:include page="fragments/bodyHeader.jsp"/>
+ 
+-<section>
+-    <h3><spring:message code="user.title"/></h3>
+-
+-    <table border="1" cellpadding="8" cellspacing="0">
+-        <thead>
+-        <tr>
+-            <th><spring:message code="user.name"/></th>
+-            <th><spring:message code="user.email"/></th>
+-            <th><spring:message code="user.roles"/></th>
+-            <th><spring:message code="user.active"/></th>
+-            <th><spring:message code="user.registered"/></th>
+-        </tr>
+-        </thead>
+-        <c:forEach items="${requestScope.users}" var="user">
+-            <jsp:useBean id="user" type="ru.javawebinar.topjava.model.User"/>
+-            <tr>
+-                <td><c:out value="${user.name}"/></td>
+-                <td><a href="mailto:${user.email}">${user.email}</a></td>
+-                <td>${user.roles}</td>
+-                <td>${user.enabled}</td>
+-                <td><fmt:formatDate value="${user.registered}" pattern="dd-MM-yyyy"/></td>
+-            </tr>
+-        </c:forEach>
+-    </table>
+-</section>
++<div class="jumbotron pt-4">
++    <div class="container">
++        <h3 class="text-center"><spring:message code="user.title"/></h3>
++        <button class="btn btn-primary">
++            <span class="fa fa-plus"></span>
++            <spring:message code="common.add"/>
++        </button>
++        <table class="table table-striped mt-3">
++            <thead>
++            <tr>
++                <th><spring:message code="user.name"/></th>
++                <th><spring:message code="user.email"/></th>
++                <th><spring:message code="user.roles"/></th>
++                <th><spring:message code="user.active"/></th>
++                <th><spring:message code="user.registered"/></th>
++                <th></th>
++                <th></th>
++            </tr>
++            </thead>
++            <c:forEach items="${requestScope.users}" var="user">
++                <jsp:useBean id="user" type="ru.javawebinar.topjava.model.User"/>
++                <tr>
++                    <td><c:out value="${user.name}"/></td>
++                    <td><a href="mailto:${user.email}">${user.email}</a></td>
++                    <td>${user.roles}</td>
++                    <td><input type="checkbox" <c:if test="${user.enabled}">checked</c:if>/></td>
++                    <td><fmt:formatDate value="${user.registered}" pattern="dd-MMMM-yyyy"/></td>
++                    <td><a><span class="fa fa-pencil"></span></a></td>
++                    <td><a><span class="fa fa-remove"></span></a></td>
++                </tr>
++            </c:forEach>
++        </table>
++    </div>
++</div>
+ <jsp:include page="fragments/footer.jsp"/>
+ </body>
+ </html>
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/jsp/index.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/index.jsp b/src/main/webapp/WEB-INF/jsp/index.jsp
+--- a/src/main/webapp/WEB-INF/jsp/index.jsp	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/webapp/WEB-INF/jsp/index.jsp	(date 1732785641533)
+@@ -6,16 +6,18 @@
+ <jsp:include page="fragments/headTag.jsp"/>
+ <body>
+ <jsp:include page="fragments/bodyHeader.jsp"/>
+-<br>
+-<section>
+-    <form method="post" action="users">
+-        <spring:message code="app.login"/>: <select name="userId">
+-        <option value="100000" selected>User</option>
+-        <option value="100001">Admin</option>
+-    </select>
+-        <button type="submit"><spring:message code="common.select"/></button>
+-    </form>
+-</section>
++<div class="jumbotron">
++    <div class="container">
++        <form method="post" action="users" class="form-inline">
++            <label><spring:message code="app.login"/></label>
++            <select name="userId" class="form-control mx-3">
++                <option value="100000" selected>User</option>
++                <option value="100001">Admin</option>
++            </select>
++            <button type="submit" class="btn btn-primary"><spring:message code="common.select"/></button>
++        </form>
++    </div>
++</div>
+ <jsp:include page="fragments/footer.jsp"/>
+ </body>
+ </html>
+\ No newline at end of file
+Index: src/main/webapp/resources/css/style.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/css/style.css b/src/main/webapp/resources/css/style.css
+--- a/src/main/webapp/resources/css/style.css	(revision 61171933823bff64a930406e827c7c77e8de1be0)
++++ b/src/main/webapp/resources/css/style.css	(date 1732785641510)
+@@ -23,10 +23,23 @@
+     color: red;
+ }
+ 
+-header, footer {
+-    background: none repeat scroll 0 0 #A6C9E2;
+-    color: #2E6E9E;
+-    font-size: 20px;
+-    padding: 5px 20px;
+-    margin: 6px 0;
++.fa {
++    cursor: pointer;
++}
++
++/*https://getbootstrap.com/docs/4.0/examples/sticky-footer/sticky-footer.css*/
++html {
++    position: relative;
++    min-height: 100%;
++}
++body {
++    margin-bottom: 60px !important; /* Margin bottom by footer height */
++}
++.footer {
++    position: absolute;
++    bottom: 0;
++    width: 100%;
++    height: 60px; /* Set the fixed height of the footer here */
++    line-height: 60px; /* Vertically center the text there */
++    background-color: #f5f5f5;
+ }
+diff --git a/src/main/webapp/resources/images/icon-meal.png b/src/main/webapp/resources/images/icon-meal.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb9dc2d731ac7a2d6ff3668a408e20f7b5ce6970
+GIT binary patch
+literal 2254
+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
+

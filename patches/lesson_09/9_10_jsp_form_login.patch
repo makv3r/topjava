@@ -1,0 +1,342 @@
+Subject: [PATCH] 9_10_jsp_form_login
+---
+Index: src/main/webapp/WEB-INF/jsp/index.jsp
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/index.jsp b/src/main/webapp/WEB-INF/jsp/index.jsp
+deleted file mode 100644
+--- a/src/main/webapp/WEB-INF/jsp/index.jsp	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ /dev/null	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
+@@ -1,23 +0,0 @@
+-<%@ page contentType="text/html;charset=UTF-8" %>
+-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+-<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+-
+-<html>
+-<jsp:include page="fragments/headTag.jsp"/>
+-<body>
+-<jsp:include page="fragments/bodyHeader.jsp"/>
+-<div class="jumbotron">
+-    <div class="container">
+-        <form method="post" action="users" class="form-inline">
+-            <label><spring:message code="app.login"/></label>
+-            <select name="userId" class="form-control mx-3">
+-                <option value="100000" selected>User</option>
+-                <option value="100001">Admin</option>
+-            </select>
+-            <button type="submit" class="btn btn-primary"><spring:message code="common.select"/></button>
+-        </form>
+-    </div>
+-</div>
+-<jsp:include page="fragments/footer.jsp"/>
+-</body>
+-</html>
+\ No newline at end of file
+Index: src/main/resources/spring/spring-mvc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-mvc.xml b/src/main/resources/spring/spring-mvc.xml
+--- a/src/main/resources/spring/spring-mvc.xml	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ b/src/main/resources/spring/spring-mvc.xml	(date 1680732770403)
+@@ -1,12 +1,16 @@
+ <beans xmlns="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:context="http://www.springframework.org/schema/context"
+-       xmlns:p="http://www.springframework.org/schema/p" xmlns:mvc="http://www.springframework.org/schema/mvc"
++       xmlns:p="http://www.springframework.org/schema/p"
++       xmlns:mvc="http://www.springframework.org/schema/mvc"
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+ 
+     <bean class="ru.javawebinar.topjava.web.json.JacksonObjectMapper" id="objectMapper" factory-method="getMapper"/>
+ 
++    <!-- serve static resources (*.html, ...) from src/main/webapp/ -->
++    <mvc:default-servlet-handler/>
++
+     <mvc:annotation-driven conversion-service="conversionService">
+         <mvc:message-converters>
+             <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+@@ -44,17 +48,17 @@
+           p:prefix="/WEB-INF/jsp/"
+           p:suffix=".jsp"/>
+ 
+-<!--
+-    <bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource"
+-          p:cacheSeconds="60"
+-          p:defaultEncoding="UTF-8">
+-        <property name="basenames">
+-            <list>
+-                <value>messages/app</value>
+-            </list>
+-        </property>
+-    </bean>
+--->
++    <!--
++        <bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource"
++              p:cacheSeconds="60"
++              p:defaultEncoding="UTF-8">
++            <property name="basenames">
++                <list>
++                    <value>messages/app</value>
++                </list>
++            </property>
++        </bean>
++    -->
+     <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource"
+           p:cacheSeconds="5"
+           p:defaultEncoding="UTF-8">
+Index: src/main/resources/spring/spring-security.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/resources/spring/spring-security.xml b/src/main/resources/spring/spring-security.xml
+--- a/src/main/resources/spring/spring-security.xml	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ b/src/main/resources/spring/spring-security.xml	(date 1680732770407)
+@@ -17,10 +17,15 @@
+     <beans:bean name="noopEncoder" class="org.springframework.security.crypto.password.NoOpPasswordEncoder"/>
+ 
+     <http>
++        <intercept-url pattern="/login" access="permitAll()"/>
++
+         <intercept-url pattern="/admin/**" access="hasRole('ADMIN')"/>
+         <intercept-url pattern="/**" access="isAuthenticated()"/>
+-        <form-login/>
+-        <logout/>
++
++        <form-login login-page="/login" default-target-url="/meals"
++                    authentication-failure-url="/login?error=true"
++                    login-processing-url="/spring_security_check"/>
++        <logout logout-success-url="/login"/>
+         <csrf disabled="true"/>
+     </http>
+ 
+Index: src/main/webapp/WEB-INF/jsp/login.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/login.jsp b/src/main/webapp/WEB-INF/jsp/login.jsp
+new file mode 100644
+--- /dev/null	(date 1680732770418)
++++ b/src/main/webapp/WEB-INF/jsp/login.jsp	(date 1680732770418)
+@@ -0,0 +1,77 @@
++<%@ page contentType="text/html;charset=UTF-8" language="java" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
++
++<html>
++<jsp:include page="fragments/headTag.jsp"/>
++<body>
++<nav class="navbar navbar-dark bg-dark py-0">
++    <div class="container">
++        <div class="navbar-brand"><img src="resources/images/icon-meal.png"> <spring:message code="app.title"/></div>
++        <form class="form-inline my-2" id="login_form" action="spring_security_check" method="post">
++            <input class="form-control mr-1" type="text" placeholder="Email" name="username">
++            <input class="form-control mr-1" type="password" placeholder="Password" name="password">
++            <button class="btn btn-success" type="submit">
++                <span class="fa fa-sign-in"></span>
++            </button>
++        </form>
++    </div>
++</nav>
++
++<div class="jumbotron py-0">
++    <div class="container">
++        <c:if test="${param.error}">
++            <div class="error">${sessionScope["SPRING_SECURITY_LAST_EXCEPTION"].message}</div>
++        </c:if>
++        <c:if test="${not empty param.message}">
++            <div class="message"><spring:message code="${param.message}" text=""/></div>
++        </c:if>
++        <br/>
++        <p>
++            <button type="submit" class="btn btn-lg btn-primary" onclick="login('user@yandex.ru', 'password')">
++                <spring:message code="app.login"/> User
++            </button>
++            <button type="submit" class="btn btn-lg btn-primary" onclick="login('admin@gmail.com', 'admin')">
++                <spring:message code="app.login"/> Admin
++            </button>
++        </p>
++        <br/>
++        <div class="lead py-4"><spring:message code="app.stackTitle"/> <br>
++            <a href="http://projects.spring.io/spring-security/">Spring Security</a>,
++            <a href="https://docs.spring.io/spring/docs/current/spring-framework-reference/html/mvc.html">Spring MVC</a>,
++            <a href="http://projects.spring.io/spring-data-jpa/">Spring Data JPA</a>,
++            <a href="http://spring.io/blog/2014/05/07/preview-spring-security-test-method-security">Spring Security
++                Test</a>,
++            <a href="http://hibernate.org/orm/">Hibernate ORM</a>,
++            <a href="http://hibernate.org/validator/">Hibernate Validator</a>,
++            <a href="http://www.slf4j.org/">SLF4J</a>,
++            <a href="https://github.com/FasterXML/jackson">Json Jackson</a>,
++            <a href="http://ru.wikipedia.org/wiki/JSP">JSP</a>,
++            <a href="http://en.wikipedia.org/wiki/JavaServer_Pages_Standard_Tag_Library">JSTL</a>,
++            <a href="http://tomcat.apache.org/">Apache Tomcat</a>,
++            <a href="http://www.webjars.org/">WebJars</a>,
++            <a href="http://datatables.net/">DataTables</a>,
++            <a href="http://ehcache.org">EHCACHE</a>,
++            <a href="http://www.postgresql.org/">PostgreSQL</a>,
++            <a href="http://hsqldb.org/">HSQLDB</a>,
++            <a href="https://junit.org/junit5/">JUnit 5</a>,
++            <a href="http://hamcrest.org/JavaHamcrest/">Hamcrest</a>,
++            <a href="https://assertj.github.io/doc/">AssertJ</a>,
++            <a href="http://jquery.com/">jQuery</a>,
++            <a href="https://plugins.jquery.com/">jQuery plugins</a>,
++            <a href="http://getbootstrap.com/">Bootstrap</a>.
++        </div>
++    </div>
++</div>
++<div class="container lead"><spring:message code="app.description"/>
++</div>
++<jsp:include page="fragments/footer.jsp"/>
++<script type="text/javascript">
++    function login(username, password) {
++        $('input[name="username"]').val(username);
++        $('input[name="password"]').val(password);
++        $("#login_form").submit();
++    }
++</script>
++</body>
++</html>
+\ No newline at end of file
+Index: src/main/webapp/resources/css/style.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/css/style.css b/src/main/webapp/resources/css/style.css
+--- a/src/main/webapp/resources/css/style.css	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ b/src/main/webapp/resources/css/style.css	(date 1680732770410)
+@@ -14,6 +14,24 @@
+     opacity: 0.3;
+ }
+ 
++.error, .message {
++    padding: 10px;
++    border-radius: 4px;
++    font-size: 16px;
++}
++
++.error {
++    color: #a94442;
++    background-color: #f2dede;
++    border: 1px solid #ebccd1;
++}
++
++.message {
++    color: #2f9635;
++    background-color: #c6fbc2;
++    border: 1px solid #9feba6;
++}
++
+ /*https://getbootstrap.com/docs/4.0/examples/sticky-footer/sticky-footer.css*/
+ html {
+     position: relative;
+Index: src/main/webapp/test.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/test.html b/src/main/webapp/test.html
+new file mode 100644
+--- /dev/null	(date 1680732770422)
++++ b/src/main/webapp/test.html	(date 1680732770422)
+@@ -0,0 +1,13 @@
++<html>
++<link rel="stylesheet" href="resources/css/style.css">
++<link rel="stylesheet" href="webjars/bootstrap/4.4.1/dist/css/bootstrap.min.css">
++<link rel="shortcut icon" href="resources/images/icon-meal.png">
++<body>
++<hr/>
++<ul>
++    <li><a href="users">User list</a></li>
++    <li><a href="meals">Meal list</a></li>
++</ul>
++<hr/>
++</body>
++</html>
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/RootController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/RootController.java b/src/main/java/ru/javawebinar/topjava/web/RootController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/RootController.java	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ b/src/main/java/ru/javawebinar/topjava/web/RootController.java	(date 1680732770400)
+@@ -6,12 +6,9 @@
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+ import org.springframework.web.bind.annotation.GetMapping;
+-import org.springframework.web.bind.annotation.PostMapping;
+ import ru.javawebinar.topjava.service.MealService;
+ import ru.javawebinar.topjava.util.MealsUtil;
+ 
+-import javax.servlet.http.HttpServletRequest;
+-
+ @Controller
+ public class RootController {
+     private static final Logger log = LoggerFactory.getLogger(RootController.class);
+@@ -22,7 +19,7 @@
+     @GetMapping("/")
+     public String root() {
+         log.info("root");
+-        return "index";
++        return "redirect:meals";
+     }
+ 
+     @GetMapping("/users")
+@@ -31,12 +28,10 @@
+         return "users";
+     }
+ 
+-    @PostMapping("/users")
+-    public String setUser(HttpServletRequest request) {
+-        int userId = Integer.parseInt(request.getParameter("userId"));
+-        log.info("setUser {}", userId);
+-        SecurityUtil.setAuthUserId(userId);
+-        return "redirect:meals";
++    @GetMapping("/login")
++    public String login() {
++        log.info("login");
++        return "login";
+     }
+ 
+     @GetMapping("/meals")
+Index: config/messages/app_ru.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app_ru.properties b/config/messages/app_ru.properties
+--- a/config/messages/app_ru.properties	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ b/config/messages/app_ru.properties	(date 1680732770395)
+@@ -1,4 +1,9 @@
+ app.title=Подсчет калорий
++app.stackTitle=Стек технологий:
++app.description=<a href="https://github.com/JavaOPs/topjava">Java Enterprise проект</a> с регистрацией/авторизацией и правами доступа на основе ролей (USER, ADMIN). \
++Администратор может создавать/редактировать/удалять пользователей, а пользователи - управлять своим профилем и данными (едой) через UI (по AJAX) и по REST интерфейсу с базовой авторизацией. \
++Возможна фильтрация еды по датам и времени. Цвет записи таблицы еды зависит от того, превышает ли сумма калорий за день норму (редактируемый параметр в профиле пользователя). \
++Весь REST интерфейс покрывается JUnit тестами, используя Spring MVC Test и Spring Security Test.
+ app.footer=Приложение стажировки <a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a>
+ app.login=Зайти как
+ 
+Index: config/messages/app.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/messages/app.properties b/config/messages/app.properties
+--- a/config/messages/app.properties	(revision 0eb9a65cf1e311a33e8c2452f6d820f5a8c61277)
++++ b/config/messages/app.properties	(date 1680732829658)
+@@ -1,4 +1,9 @@
+ app.title=Calories management
++app.stackTitle=Application stack:
++app.description=<a href="https://github.com/JavaOPs/topjava">Java Enterprise project</a> with registration/authorization and role-based access rights (USER, ADMIN). \
++Admin could create/edit/delete users, users - manage your profile and data (meals) via UI (AJAX) and REST with basic authorization. \
++Meals could be filtered by date and time. Meal record color depends on daily calories sum exceeding "Daily calorie limit" (editable user's profile paramets). \
++All REST interface covered with JUnit tests by Spring MVC Test and Spring Security Test.
+ app.footer=<a href="https://github.com/JavaOPs/topjava" target=_blank>Spring 5/JPA Enterprise (Topjava)</a> internship application
+ app.login=Login as
+ 
